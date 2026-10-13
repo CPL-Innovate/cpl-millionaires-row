@@ -29,6 +29,28 @@ export interface Source {
 
 export type MassingKind = 'villa' | 'mansard' | 'romanesque' | 'church';
 
+// Per-face provenance for an image-to-3D mesh, in the model's own space (front = +z, as Tripo
+// exports it; x and z in model units). Faces are sorted by their normal: roof (up), front, the two
+// sides, and everything else (rear). The cut-offs mark where the evidence stops on a face.
+export interface MeshProvenance {
+  front: Provenance;
+  sideNegX: Provenance; // the side on the left when you face the front
+  sidePosX: Provenance;
+  roof: Provenance;
+  rear: Provenance;
+  frontInventedPastX?: number; // front faces beyond this x are invented (hidden in the source photo)
+  inventedBehindZ?: number; // everything behind this z is invented (e.g. a wing GPT made up)
+}
+
+export interface MeshModel {
+  url: string;
+  scale: number; // metres per model unit, from the footprint (the model has no real scale)
+  rotation?: number; // about y; 0 when the model's front (+z) faces south
+  provenance: MeshProvenance;
+  note: string; // shown on the card: what this mesh is, and what it is not
+  looks?: { map: string; normalMap: string }; // 2k maps for the Watercolour and Texture looks
+}
+
 export interface Building {
   id: string;
   name: string;
@@ -36,10 +58,11 @@ export interface Building {
   address: string;
   owner1888: string;
   plateLabel: string; // name as written on the 1881 plate
-  plate: [number, number]; // footprint centre in plate px
+  plate: [number, number]; // footprint centre in plate px (for a mesh: the model's origin)
   kind: MassingKind | 'mesh';
   size: [number, number, number]; // width (x), height to eaves, depth (z)
   rotation?: number;
+  model?: MeshModel;
   status: string;
   ledger: { surface: string; state: Provenance; basis: string }[];
   sources: Source[];
@@ -56,6 +79,13 @@ export const BUILDINGS: Building[] = [
     plate: [1072, 596],
     kind: 'mesh',
     size: [32, 25, 19],
+    model: {
+      url: '/models/everett.glb',
+      scale: 32 / 0.979,
+      provenance: { front: 'photographed', sideNegX: 'photographed', sidePosX: 'invented', roof: 'inferred', rear: 'invented' },
+      note: 'Mesh: Tripo image-to-3D spike A1 (provisional score 50–54/100), not a reconstruction.',
+      looks: { map: '/models/everett-basecolor.jpg', normalMap: '/models/everett-normal.jpg' },
+    },
     status: 'Demolished 1938',
     ledger: [
       { surface: 'South front', state: 'photographed', basis: 'CPL 62, 63 — Tripo A1 from cleaned 62' },
@@ -75,16 +105,32 @@ export const BUILDINGS: Building[] = [
     address: '3917 Euclid (NW corner)',
     owner1888: 'Jeptha H. Wade Sr.',
     plateLabel: 'J. H. Wade',
-    plate: [911, 468],
-    kind: 'villa',
-    size: [18, 9.5, 20],
+    plate: [908, 490],
+    kind: 'mesh',
+    size: [19.9, 17.1, 19.1],
+    model: {
+      url: '/models/wade-sr.glb',
+      // body ~0.87 units ↔ 17.7 m main block on 1881 Plate 3 (no Sanborn: razed 1890)
+      scale: 20.3,
+      provenance: {
+        front: 'photographed', sideNegX: 'inferred', sidePosX: 'inferred', roof: 'inferred', rear: 'invented',
+        frontInventedPastX: 0.14, // the 4th and 5th bays and the veranda end, hidden by trees in 8106
+      },
+      note: 'Mesh: Tripo image-to-3D spike W1, unscored, not a reconstruction. The façade came out flat; 8106 shows a break in it.',
+    },
     status: 'Torn down 1890 by his will',
     ledger: [
-      { surface: 'Footprint', state: 'inferred', basis: '1881 Hopkins Plate 3, lot 94' },
-      { surface: 'Massing + cupola', state: 'inferred', basis: 'Sweeny stereograph CPL 8106 (S-SE ¾)' },
-      { surface: 'Rear', state: 'invented', basis: 'Typology fill' },
+      { surface: 'South front, west three bays', state: 'photographed', basis: 'CPL 8106 (Sweeny stereo, ¾) → GPT clean → Tripo W1' },
+      { surface: 'Front, east end + veranda end', state: 'invented', basis: 'Hidden by trees in 8106' },
+      { surface: 'Sides', state: 'inferred', basis: 'One is seen at ¾ in 8106; which one is unverified' },
+      { surface: 'Massing', state: 'inferred', basis: 'Front drawn flat; model is ~60% of the 1881 plate’s depth; IoA ch04-48 lithograph' },
+      { surface: 'Rear', state: 'invented', basis: 'Tripo copied the front' },
+      { surface: 'Walls', state: 'inferred', basis: 'Material unknown; kept neutral' },
     ],
-    sources: [{ label: 'J. H. Wade residence, stereograph (Sweeny)', id: 'p4014coll18:8106' }],
+    sources: [
+      { label: 'J. H. Wade residence, stereograph (Sweeny)', id: 'p4014coll18:8106' },
+      { label: 'Wade estate lithograph — Dutka, Images of America (2019) ch. 4 fig. 48, credited CPL' },
+    ],
   },
   {
     id: 'wade-randall',
@@ -110,15 +156,27 @@ export const BUILDINGS: Building[] = [
     address: '3813 Euclid',
     owner1888: 'T. S. Beckwith estate',
     plateLabel: 'Beckwith Est.',
-    plate: [664, 458],
-    kind: 'villa',
-    size: [19, 10, 20],
+    plate: [668, 470],
+    kind: 'mesh',
+    size: [22.4, 15, 14.5],
+    model: {
+      url: '/models/stager-beckwith.glb',
+      // house without the veranda ~0.82 units ↔ 61 ft (18.7 m) on 1912 Sanborn 96; its 38 ft height then matches
+      scale: 22.8,
+      provenance: { front: 'photographed', sideNegX: 'invented', sidePosX: 'invented', roof: 'inferred', rear: 'invented' },
+      note: 'Mesh: Tripo image-to-3D spike S1, unscored, not a reconstruction.',
+    },
     status: 'Survives — the calibration building',
     ledger: [
-      { surface: 'Footprint', state: 'inferred', basis: '1881 Plate 3; 1912 Sanborn 96' },
-      { surface: 'Massing', state: 'inferred', basis: 'Survives — measurable in person (not yet done)' },
+      { surface: 'South front + east veranda', state: 'photographed', basis: 'Early-20th-c. photo (WRHS; rights to confirm) → GPT clean → Tripo S1. Porch under the tower invented' },
+      { surface: 'Sides + rear', state: 'invented', basis: 'No period photograph; Tripo copied the front' },
+      { surface: 'Roof', state: 'inferred', basis: 'Mansard and tower cap from the front; IoA ch04-40 lithograph' },
+      { surface: 'Scale', state: 'inferred', basis: '1912 Sanborn 96: main block 61 ft, 38 ft high' },
     ],
-    sources: [{ label: 'Stager-Beckwith house (modern)', id: 'p4014coll18:12361' }],
+    sources: [
+      { label: 'Stager-Beckwith house (modern)', id: 'p4014coll18:12361' },
+      { label: 'Front, early 20th c. — Cleveland Children’s Museum / WRHS (rights to confirm)' },
+    ],
   },
   {
     id: 'brush',
@@ -144,14 +202,28 @@ export const BUILDINGS: Building[] = [
     address: '3920 Euclid (SW corner)',
     owner1888: 'John D. Rockefeller (in New York; kept with caretakers)',
     plateLabel: 'L. C. Rockefeller',
-    plate: [851, 850],
-    kind: 'mansard',
-    size: [15, 9, 18],
+    plate: [853, 853],
+    kind: 'mesh',
+    size: [15.3, 14, 29.8],
+    model: {
+      url: '/models/rockefeller.glb',
+      // main block 0.45 units ↔ 45 ft (13.7 m) front on 1912 Sanborn 26
+      scale: 30.4,
+      rotation: Math.PI, // faces north, onto Euclid
+      provenance: {
+        front: 'photographed', sideNegX: 'photographed', sidePosX: 'invented', roof: 'inferred', rear: 'invented',
+        inventedBehindZ: 0.15, // the main block's corner: GPT invented the long wing behind it
+      },
+      note: 'Mesh: Tripo image-to-3D spike R1, unscored, not a reconstruction. The camera orientation of 3475 is a hypothesis.',
+    },
     status: 'Demolished 1938',
     ledger: [
-      { surface: 'Footprint', state: 'inferred', basis: '1881 Hopkins Plate 5' },
-      { surface: 'Mansard massing', state: 'inferred', basis: 'CPL 3475 (E-SE ¾)' },
-      { surface: 'West + rear', state: 'invented', basis: 'Typology fill' },
+      { surface: 'North front', state: 'photographed', basis: 'CPL 3475 (¾) → GPT clean → Tripo R1' },
+      { surface: 'Case Ave side, main block', state: 'photographed', basis: '3475, oblique; camera from the NE is a hypothesis' },
+      { surface: 'Wing behind the main block', state: 'invented', basis: 'Made up by GPT. 1912 Sanborn 26 does show a 2½-storey rear wing, but not this one' },
+      { surface: 'West + rear', state: 'invented', basis: 'Tripo copied the front' },
+      { surface: 'Roof', state: 'inferred', basis: 'Mansard visible in 3475' },
+      { surface: 'Scale', state: 'inferred', basis: '1912 Sanborn 26: main block 45 ft square' },
     ],
     sources: [{ label: 'Rockefeller residence, ¾ from E-SE', id: 'p4014coll18:3475' }],
   },
@@ -211,17 +283,24 @@ export const STATIONS: Station[] = [
     id: 'wade',
     title: 'Wade villa, up the drive',
     caption: 'Sweeny stereograph — the corner house that had to die.',
-    position: [-29, 1.6, -62],
-    target: [-40, 6, -96],
+    position: [-27, 1.6, -50],
+    target: [-38, 7, -88],
     photo: { url: '/img/wade-8106.jpg', id: 'p4014coll18:8106', label: 'J. H. Wade residence (Sweeny stereograph)', aspect: 550 / 530 },
   },
   {
     id: 'rockefeller',
-    title: 'Rockefeller, from the E-SE',
-    caption: 'The smallest house on the biggest lot at the intersection.',
+    title: 'Rockefeller, from the NE',
+    caption: 'The smallest house on the biggest lot at the intersection. CPL 3475 seems taken from the NE, not the E-SE its record says: a hypothesis.',
     position: [-33, 1.6, 30],
     target: [-60, 7, 64],
     photo: { url: '/img/rockefeller-3475.jpg', id: 'p4014coll18:3475', label: 'Rockefeller residence', aspect: 1393 / 985 },
+  },
+  {
+    id: 'stager',
+    title: 'Stager–Beckwith, from Euclid',
+    caption: 'The one face a photograph shows, and the house that survives: the calibration building.',
+    position: [-122, 1.6, -42],
+    target: [-136, 8, -92],
   },
   {
     id: 'st-pauls',

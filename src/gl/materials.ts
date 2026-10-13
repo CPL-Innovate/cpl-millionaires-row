@@ -1,6 +1,30 @@
 import * as THREE from 'three';
 import { U } from './uniforms';
-import { EUCLID, CASE } from '../data/site';
+import { EUCLID, CASE, type MeshProvenance, type Provenance } from '../data/site';
+
+const STATE: Record<Provenance, number> = { photographed: 0, inferred: 1, invented: 2 };
+
+// Per-face provenance of an image-to-3D mesh as uniforms (see MeshProvenance in data/site.ts).
+// `box` is the model's object-space bounds: lines have no normals, so they use position zones.
+function provUniforms(p: MeshProvenance, box: THREE.Box3) {
+  return {
+    uProv: { value: new THREE.Vector4(STATE[p.front], STATE[p.sideNegX], STATE[p.sidePosX], STATE[p.roof]) },
+    uProvRear: { value: STATE[p.rear] },
+    uFrontInvX: { value: p.frontInventedPastX ?? 1e3 },
+    uBehindZ: { value: p.inventedBehindZ ?? -1e3 },
+    uBoxMin: { value: box.min.clone() },
+    uBoxMax: { value: box.max.clone() },
+  };
+}
+
+// shared GLSL for both surfaces and lines
+const PROV = /* glsl */ `
+uniform vec4 uProv;      // front, side −x, side +x, roof
+uniform float uProvRear;
+uniform float uFrontInvX;
+uniform float uBehindZ;
+uniform vec3 uBoxMin, uBoxMax;
+`;
 
 // ---------------------------------------------------------------------------------------------
 // Shared GLSL. The reveal is the Chartogne technique: a noise texture plus a per-cell random
@@ -48,25 +72,26 @@ float paperGrain(vec2 fragCoord) {
 `;
 
 // ---------------------------------------------------------------------------------------------
-// Surfaces: buildings and the Everett mesh. Provenance state is a uniform (0 photographed,
-// 1 inferred, 2 invented) or, for the Everett mesh, derived per fragment from object-space
-// normals (front + west photographed, roof inferred, north + east invented).
+// Surfaces: massing blocks and the image-to-3D meshes. Provenance state is a uniform (0
+// photographed, 1 inferred, 2 invented) or, for a mesh, derived per fragment from its
+// object-space normal and position (MeshProvenance).
 // ---------------------------------------------------------------------------------------------
 // With `looks` (the Everett mesh), the same surface can also render as a watercolour wash over
 // the model's texture or as the texture itself, lit; uLookFrom → uLookTo blotches across as
 // uLookT runs 0 → 1, with the same noise family as the street reveal.
 export function makeSurfaceMaterial(opts: {
   state?: number;
-  everett?: boolean;
+  mesh?: { provenance: MeshProvenance; box: THREE.Box3 };
   map?: THREE.Texture | null;
   looks?: { map: THREE.Texture; normalMap: THREE.Texture };
 }) {
   return new THREE.ShaderMaterial({
     transparent: true,
     side: THREE.DoubleSide,
-    defines: { EVERETT: opts.everett ? 1 : 0, USE_PHOTOMAP: opts.map ? 1 : 0, LOOKS: opts.looks ? 1 : 0 },
+    defines: { MESH: opts.mesh ? 1 : 0, USE_PHOTOMAP: opts.map ? 1 : 0, LOOKS: opts.looks ? 1 : 0 },
     uniforms: {
       ...U,
+      ...(opts.mesh ? provUniforms(opts.mesh.provenance, opts.mesh.box) : {}),
       uState: { value: opts.state ?? 1 },
       uMap: { value: opts.map ?? null },
       uLookMap: { value: opts.looks?.map ?? null },
@@ -103,6 +128,9 @@ export function makeSurfaceMaterial(opts: {
       varying vec3 vPosO;
       varying float vDepth;
       varying vec2 vUv;
+      #if MESH
+      ${PROV}
+      #endif
 
       #if LOOKS
       uniform sampler2D uLookMap;
@@ -184,12 +212,14 @@ export function makeSurfaceMaterial(opts: {
         if (!gl_FrontFacing) n = -n;
 
         float state = uState;
-        #if EVERETT
+        #if MESH
           vec3 no = normalize(vNormalO);
-          if (no.y > 0.6) state = 1.0;            // roof: inferred
-          else if (no.z > 0.35) state = 0.0;      // south front: photographed
-          else if (no.x < -0.35) state = 0.0;     // west side: photographed
-          else state = 2.0;                       // north + east: invented
+          if (no.y > 0.6) state = uProv.w;                                    // roof
+          else if (no.z > 0.35) state = vPosO.x > uFrontInvX ? 2.0 : uProv.x; // front
+          else if (no.x < -0.35) state = uProv.y;                             // left side
+          else if (no.x > 0.35) state = uProv.z;                              // right side
+          else state = uProvRear;                                             // rear
+          if (vPosO.z < uBehindZ) state = 2.0;                                // past where the evidence stops
         #endif
 
         // soft overcast light + a little sky occlusion near the ground
@@ -271,12 +301,17 @@ export function makeSurfaceMaterial(opts: {
 // Lines: building edges, trees, fences, the windmill. Hand wobble in the vertex shader; dashed
 // for invented; faded by distance.
 // ---------------------------------------------------------------------------------------------
-export function makeLineMaterial(opts: { state?: number; everett?: boolean; weight?: number }) {
+export function makeLineMaterial(opts: { state?: number; mesh?: { provenance: MeshProvenance; box: THREE.Box3 }; looks?: boolean; weight?: number }) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    defines: { EVERETT: opts.everett ? 1 : 0 },
-    uniforms: { ...U, uState: { value: opts.state ?? 1 }, uWeight: { value: opts.weight ?? 1 } },
+    defines: { MESH: opts.mesh ? 1 : 0, LOOKS: opts.looks ? 1 : 0 },
+    uniforms: {
+      ...U,
+      ...(opts.mesh ? provUniforms(opts.mesh.provenance, opts.mesh.box) : {}),
+      uState: { value: opts.state ?? 1 },
+      uWeight: { value: opts.weight ?? 1 },
+    },
     vertexShader: /* glsl */ `
       uniform float uTime;
       uniform sampler2D uNoise;
@@ -307,14 +342,23 @@ export function makeLineMaterial(opts: { state?: number; everett?: boolean; weig
       varying vec3 vPosO;
       varying float vDepth;
       varying float vDist;
+      #if MESH
+      ${PROV}
+      #endif
       void main() {
         if (reveal(vWorld.xz) < 0.5) discard;
         float state = uState;
-        #if EVERETT
-          // object-space position heuristic matching the surface rule
-          if (vPosO.z > 0.12 || vPosO.x < -0.3) state = 0.0;
-          else state = 2.0;
-          if (vPosO.y > 0.55 && state > 1.5) state = 1.0;
+        #if MESH
+        {
+          // lines carry no normal: sort them by zone of the bounding box, matching the surface rule
+          vec3 q = (vPosO - (uBoxMin + uBoxMax) * 0.5) / max((uBoxMax - uBoxMin) * 0.5, vec3(1e-4));
+          state = uProvRear;
+          if (q.x < -0.6) state = uProv.y;
+          if (q.x > 0.6) state = uProv.z;
+          if (q.z > 0.4) state = vPosO.x > uFrontInvX ? 2.0 : uProv.x;
+          if (state > 1.5 && q.y > 0.45) state = uProv.w; // up in the roof, unevidenced lines are roof
+          if (vPosO.z < uBehindZ) state = 2.0;
+        }
         #endif
         float photographed = 1.0 - step(0.5, state);
         float invented = step(1.5, state);
@@ -328,7 +372,7 @@ export function makeLineMaterial(opts: { state?: number; everett?: boolean; weig
           a *= mix(1.0, dash * 0.75, uEvidence);
         }
         a *= 1.0 - smoothstep(120.0, 380.0, vDepth);
-        #if EVERETT
+        #if LOOKS
           a *= uLookLines;
         #endif
         gl_FragColor = vec4(col, a);

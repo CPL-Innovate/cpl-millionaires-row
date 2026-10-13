@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { BUILDINGS, PLATE, STATIONS, plateToWorld, euclidCentreZ, EUCLID, type Building } from '../data/site';
+import { BUILDINGS, PLATE, STATIONS, plateToWorld, euclidCentreZ, EUCLID, type Building, type MeshModel } from '../data/site';
 import { makeDabMaterial, makeGroundMaterial, makeLineMaterial, makeSurfaceMaterial } from '../gl/materials';
 import { elm, massing, treeParams, windmillRotor, windmillTower } from '../gl/geometry';
 import { U } from '../gl/uniforms';
@@ -75,21 +75,22 @@ function Massing({ b }: { b: Building }) {
   );
 }
 
-// Everett renders in three looks (pencil, watercolour, texture) from one material; the 2k colour
-// and normal maps come from the un-decimated Tripo export (scripts/everett-maps.mjs).
-function Everett({ b }: { b: Building }) {
-  const gltf = useGLTF('/models/everett.glb');
-  const [lookMap, normalMap] = useLoader(THREE.TextureLoader, ['/models/everett-basecolor.jpg', '/models/everett-normal.jpg']);
+// An image-to-3D house (Tripo spike), slimmed by scripts/slim-model.mjs. A house with `looks` maps
+// (Everett, from scripts/everett-maps.mjs) also renders as watercolour or texture.
+function MeshHouse({ b }: { b: Building }) {
+  const model = b.model!;
+  const gltf = useGLTF(model.url);
   const [x, z] = plateToWorld(b.plate[0], b.plate[1]);
-  const s = b.size[0] / 0.979; // model is normalised to ~0.98 wide
-  const { geo, edges, surf, line, contact } = useMemo(() => {
+  const s = model.scale;
+  const rot = model.rotation ?? 0;
+  const { geo, map, edges, line, contact } = useMemo(() => {
     let mesh: THREE.Mesh | null = null;
     gltf.scene.traverse((o) => {
       if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
     });
     const m = mesh as unknown as THREE.Mesh;
     // meshopt quantises positions and puts the dequantising scale/offset on the node — bake it
-    // into float positions so the mesh is back in its authored units (~0.98 wide, base at y = 0)
+    // into float positions so the mesh is back in its authored units (~1 wide, base at y = 0)
     m.updateWorldMatrix(true, false);
     const geo = (m.geometry as THREE.BufferGeometry).clone();
     const src = geo.getAttribute('position');
@@ -102,25 +103,20 @@ function Everett({ b }: { b: Building }) {
     geo.computeBoundingBox();
     const map = ((m.material as THREE.MeshStandardMaterial).map ?? null) as THREE.Texture | null;
     if (map) map.colorSpace = THREE.SRGBColorSpace;
-    // glTF UVs: no flip
-    lookMap.flipY = normalMap.flipY = false;
-    lookMap.colorSpace = THREE.SRGBColorSpace;
-    lookMap.anisotropy = normalMap.anisotropy = 8;
-    lookMap.needsUpdate = normalMap.needsUpdate = true;
     return {
       geo,
+      map,
       edges: edgesOf(geo, 38),
-      surf: makeSurfaceMaterial({ everett: true, map, looks: { map: lookMap, normalMap } }),
-      line: makeLineMaterial({ everett: true, weight: 0.55 }),
-      contact: contactDots(geo, x, z, s),
+      line: makeLineMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, looks: !!model.looks, weight: 0.55 }),
+      contact: contactDots(geo, x, z, s, rot),
     };
-  }, [gltf, lookMap, normalMap, x, z, s]);
+  }, [gltf, model, x, z, s, rot]);
   useEffect(() => () => contact.dispose(), [contact]);
   const contactMat = useMemo(() => makeDabMaterial({ sway: 0.15, solid: true, role: 'shrub' }), []);
   return (
     <>
-      <group position={[x, 0, z]} scale={s}>
-        <mesh geometry={geo} material={surf} renderOrder={1} />
+      <group position={[x, 0, z]} rotation-y={rot} scale={s}>
+        {model.looks ? <LooksSurface geo={geo} map={map} model={model} /> : <PencilSurface geo={geo} map={map} model={model} />}
         <lineSegments geometry={edges} material={line} renderOrder={2} />
       </group>
       <points geometry={contact} material={contactMat} renderOrder={2} />
@@ -128,10 +124,31 @@ function Everett({ b }: { b: Building }) {
   );
 }
 
+type SurfaceProps = { geo: THREE.BufferGeometry; map: THREE.Texture | null; model: MeshModel };
+
+function PencilSurface({ geo, map, model }: SurfaceProps) {
+  const surf = useMemo(() => makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map }), [geo, map, model]);
+  return <mesh geometry={geo} material={surf} renderOrder={1} />;
+}
+
+function LooksSurface({ geo, map, model }: SurfaceProps) {
+  const [lookMap, normalMap] = useLoader(THREE.TextureLoader, [model.looks!.map, model.looks!.normalMap]);
+  const surf = useMemo(() => {
+    // glTF UVs: no flip
+    lookMap.flipY = normalMap.flipY = false;
+    lookMap.colorSpace = THREE.SRGBColorSpace;
+    lookMap.anisotropy = normalMap.anisotropy = 8;
+    lookMap.needsUpdate = normalMap.needsUpdate = true;
+    return makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, looks: { map: lookMap, normalMap } });
+  }, [geo, map, model, lookMap, normalMap]);
+  return <mesh geometry={geo} material={surf} renderOrder={1} />;
+}
+
 // where the walls meet the ground: soil, grass and low planting in dots all the way round the
 // footprint, so the house sits in the painting instead of floating over it
-function contactDots(geo: THREE.BufferGeometry, x: number, z: number, s: number) {
+function contactDots(geo: THREE.BufferGeometry, x: number, z: number, s: number, rot = 0) {
   const r = rand(4111);
+  const c = Math.cos(rot), sn = Math.sin(rot);
   const p = geo.getAttribute('position');
   const base: [number, number][] = [];
   for (let i = 0; i < p.count; i++) if (p.getY(i) * s < 0.35) base.push([p.getX(i) * s, p.getZ(i) * s]);
@@ -149,7 +166,8 @@ function contactDots(geo: THREE.BufferGeometry, x: number, z: number, s: number)
     const roll = r();
     // soil and shadow tight to the wall, grass and the odd shrub tuft beyond
     const tint = out1 < 0.35 && roll < 0.6 ? 10 + r() * 1.4 : roll < 0.04 ? 6 + Math.floor(r() * 2) : clamp01(0.1 + h * 0.9 + (r() - 0.5) * 0.4) * 3.5;
-    out.push(x + px, h + 0.05, z + pz, 0.1 + r() * 0.22, tint, r());
+    // model space → world: rotate about y, then place
+    out.push(x + px * c + pz * sn, h + 0.05, z - px * sn + pz * c, 0.1 + r() * 0.22, tint, r());
   }
   return dabGeo(out);
 }
@@ -519,7 +537,7 @@ export function World() {
   return (
     <group>
       <Ground />
-      {BUILDINGS.map((b) => (b.kind === 'mesh' ? <Everett key={b.id} b={b} /> : <Massing key={b.id} b={b} />))}
+      {BUILDINGS.map((b) => (b.model ? <MeshHouse key={b.id} b={b} /> : <Massing key={b.id} b={b} />))}
       <Carpet />
       <StreetKit />
       <Washes />
@@ -529,4 +547,4 @@ export function World() {
   );
 }
 
-useGLTF.preload('/models/everett.glb');
+BUILDINGS.forEach((b) => b.model && useGLTF.preload(b.model.url));

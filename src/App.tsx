@@ -311,6 +311,7 @@ export default function App() {
           <h2>{building.name}</h2>
           <p className="meta">{building.address} · {building.owner1888} · {building.status}</p>
           <p>{station.caption}</p>
+          {building.model && <p className="src">{building.model.note}</p>}
           <table>
             <tbody>
               {building.ledger.map((l) => (
@@ -338,7 +339,7 @@ export default function App() {
       <footer className="foot">
         {mode === 'street' ? 'Drag to look · WASD / arrows to walk · shift to hurry · numbered pins are story beats' : 'Drag to pan · scroll to zoom · pick a house or a station to descend'}
         <span>
-          Demo. Positions read off 1881 Hopkins Plates 3 + 5 (±5 m). Massing inferred; Everett mesh = Tripo spike A1. Images: Cleveland Public Library Digital Gallery.
+          Demo. Positions read off 1881 Hopkins Plates 3 + 5 (±5 m). Everett, Stager–Beckwith, Rockefeller and Wade Sr. are image-to-3D spikes, not reconstructions; the rest are massing blocks. Images: Cleveland Public Library Digital Gallery.
         </span>
       </footer>
     </div>
