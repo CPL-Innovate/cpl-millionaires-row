@@ -103,7 +103,11 @@ public/
 ### Techniques worth knowing
 
 - **Reveal:** a noise threshold with a per-cell random offset makes the street sketch itself
-  outward from where you land, instead of fading in.
+  outward from where you land, instead of fading in. Ahead of the front, each dot waits a little
+  further out and up, small, and is swept inward to its place as the front passes; going back to
+  the map runs it in reverse.
+- **Photo ghosts:** the CPL print develops from its centre outward with a ragged, wet front, and
+  keeps a soft deckled edge instead of a hard rectangle.
 - **Pencil hatching:** world-space strokes, made by measuring distance to a far point, wobbled by
   noise. Darker tones get crosshatching. Strokes merge into flat tone with distance to avoid moiré.
 - **Pointillism:**
@@ -161,7 +165,7 @@ In priority order, from the last review:
    - An optional inferred-colour wash on the walls (sandstone, brick).
 2. ~~An "1888" preset alongside a "Painterly" one.~~ Done: Painterly is the default, 1888 the
    toggle. Still worth calibrating 1888's colours against the photographs with L&GH.
-3. **Dots gathering on arrival,** and station photos dissolving in at their edges.
+3. ~~Dots gathering on arrival, and station photos dissolving in at their edges.~~ Done.
 4. ~~A frame-rate counter and a "light" preset.~~ Done (`?fps`, Performance → Light). Next:
    measure on a phone.
 5. Later: sound (including the silent bells of St. Paul's), the winter sleigh-race moment (mostly a

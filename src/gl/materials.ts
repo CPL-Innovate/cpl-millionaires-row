@@ -440,12 +440,20 @@ export function makePhotoMaterial(tex: THREE.Texture) {
       uniform float uOpacity;
       varying vec2 vUv;
       void main() {
-        float n = noise2(vUv * vec2(0.9, 0.7)) + hash2(floor(vUv * vec2(28.0, 22.0))) * 0.35;
-        float shown = step(1.0 - uOpacity * 1.35, n);
+        // distance from the centre of the print: 0 at the middle, 1 at the edge (a softened square)
+        vec2 q = abs(vUv - 0.5) * 2.0;
+        float r = mix(max(q.x, q.y), length(q) * 0.7071, 0.35);
+        float n = noise2(vUv * vec2(1.4, 1.1) + 0.3) * 0.6 + noise2(vUv * 7.0 + 0.7) * 0.4;
+        // the print develops from the middle outward with a ragged, wet front
+        float front = uOpacity * 1.55;
+        float rr = r + (n - 0.5) * 0.4;
+        float shown = 1.0 - smoothstep(front - 0.1, front, rr);
+        // and keeps a soft deckled edge: no hard rectangle against the drawing
+        float edge = 1.0 - smoothstep(0.84, 1.0, r + (n - 0.5) * 0.22);
         vec3 c = texture2D(uPhoto, vUv).rgb;
-        // soft vignette edge so it reads as a print held up to the street
-        vec2 e = smoothstep(vec2(0.0), vec2(0.04), vUv) * smoothstep(vec2(0.0), vec2(0.04), 1.0 - vUv);
-        float a = shown * e.x * e.y * min(1.0, uOpacity * 1.6);
+        // pigment pools a little at the developing front
+        c *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.07, abs(rr - front + 0.05))) * step(uOpacity, 0.98);
+        float a = shown * edge;
         gl_FragColor = vec4(c, a);
         #include <colorspace_fragment>
       }
@@ -600,18 +608,32 @@ export function makeDabMaterial(
           float jm = 0.08; float dotMul = 1.0;
         #endif
         wp.xyz += bm * uG_jitter * jm;
-        vec4 mv = viewMatrix * wp;
-        gl_Position = projectionMatrix * mv;
-        float depth = max(-mv.z, 0.1);
 
         // the same radial reveal as the drawing: dabs bloom as the street sketches in
         float d = distance(wp.xz, uRevealCenter);
         float n = texture2D(uNoise, wp.xz * 0.012).r * 26.0 + hash2(floor(wp.xz * 0.35)) * 6.0;
         float rev = clamp((uRevealRadius - d - n) / 12.0, 0.0, 1.0);
+        float gather = 0.0;
+        #if !FALLING
+        {
+          // gathering: the drawing front sweeps the dots in. Ahead of it each dot waits a little
+          // further out and up, small, and drifts inward to its place as the front passes (a wider
+          // band than the bloom, so it reads as motion)
+          gather = 1.0 - clamp((uRevealRadius - d - n) / 40.0, 0.0, 1.0);
+          gather *= gather;
+          vec2 outward = normalize(wp.xz - uRevealCenter + vec2(1e-3));
+          vec3 from = vec3(outward.x + hash2(vec2(aSeed, 1.1)) - 0.5, 0.2 + 0.7 * hash2(vec2(aSeed, 2.3)), outward.y + hash2(vec2(aSeed, 3.7)) - 0.5);
+          wp.xyz += from * (2.0 + 5.0 * hash2(vec2(aSeed, 5.1))) * gather;
+        }
+        #endif
+        vec4 mv = viewMatrix * wp;
+        gl_Position = projectionMatrix * mv;
+        float depth = max(-mv.z, 0.1);
 
         float size = size0 * dotMul * uPxScale / depth;
         size *= 1.0 + uG_breathe * min(jm, 1.0) * sin(ts * 1.6 + aSeed * 90.0);
         size *= 1.0 - pow(1.0 - rev, 3.0);
+        size *= 1.0 - 0.7 * gather;                         // scattered dots are small; they swell as they settle
         size *= smoothstep(1.2, 4.0, depth);                // don't paint over the lens
         size *= step(aSeed, 1.0 - uEvidence * 0.85);       // evidence mode: the impression thins out
         gl_PointSize = min(size, 180.0);
