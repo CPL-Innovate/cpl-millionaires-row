@@ -1,7 +1,7 @@
-// Generate the sound effects in scripts/sounds.json with ElevenLabs (text-to-sound v2) into
-// public/audio/. Existing files are skipped, so it can be re-run to fill gaps or, after deleting a
+// Generate the sound effects and music in scripts/sounds.json with ElevenLabs (text-to-sound v2;
+// entries with "kind": "music" use the Music API, which needs a paid plan) into public/audio/. Existing files are skipped, so it can be re-run to fill gaps or, after deleting a
 // file, to re-roll that take.
-// Usage: ELEVENLABS_API_KEY=… node scripts/gen-sounds.mjs [tier1|tier2|later|all] [name …]
+// Usage: ELEVENLABS_API_KEY=… node scripts/gen-sounds.mjs [tier1|tier2|later|music|all] [name …]
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 
 const key = process.env.ELEVENLABS_API_KEY;
@@ -23,17 +23,19 @@ for (const s of sounds) {
 
 async function gen({ s, out }) {
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const res = await fetch('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128', {
-      method: 'POST',
-      headers: { 'xi-api-key': key, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        text: s.prompt,
-        model_id: 'eleven_text_to_sound_v2',
-        duration_seconds: s.duration,
-        prompt_influence: s.influence,
-        loop: s.loop,
-      }),
-    });
+    const music = s.kind === 'music';
+    const res = await fetch(
+      music ? 'https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128' : 'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128',
+      {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'content-type': 'application/json' },
+        body: JSON.stringify(
+          music
+            ? { prompt: s.prompt, music_length_ms: s.length_ms, model_id: 'music_v1', force_instrumental: true }
+            : { text: s.prompt, model_id: 'eleven_text_to_sound_v2', duration_seconds: s.duration, prompt_influence: s.influence, loop: s.loop },
+        ),
+      },
+    );
     if (res.ok) {
       writeFileSync(out, Buffer.from(await res.arrayBuffer()));
       const cost = +(res.headers.get('character-cost') ?? 0);

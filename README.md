@@ -78,10 +78,12 @@ npm run build    # type-check + production build into dist/
     falls quiet and a single bell answers from far across the city.
   - Interface sounds: pencil and paper as the street draws itself, a shimmer as the dots gather,
     the photo developing, and a card tap on buttons.
-  - **Music** (on by default once sound is on): `public/audio/music.mp3`, if present, loops
-    quietly under everything and stops at St. Paul's. No track is checked in yet.
+  - **Music** (on by default once sound is on): an original slow salon waltz for each era,
+    generated with the ElevenLabs Music API. Painterly gets warm piano over a soft string pad, and
+    1888 a sparse, hushed upright. It plays quietly under everything, rests a few seconds between
+    repeats, crossfades when the era changes, and falls silent at St. Paul's.
   - The sounds are generated with ElevenLabs from the prompts in `docs/sound-brief.md`
-    (`scripts/sounds.json`). `ELEVENLABS_API_KEY=… node scripts/gen-sounds.mjs tier1|tier2|all`
+    (`scripts/sounds.json`). `ELEVENLABS_API_KEY=… node scripts/gen-sounds.mjs tier1|tier2|later|music|all`
     fills in missing files, so delete a file and re-run it to re-roll that sound. Then run
     `python3 scripts/normalize-audio.py` to level everything to −20 LUFS. The mix is set in
     `src/audio/engine.ts`.

@@ -268,5 +268,23 @@
   "influence": 0.4,
   "prompt": "A still, snowy residential avenue in the 1880s: soft muffled quiet, a light wind, a distant sleigh bell now and then. No cars, no music, no voices.",
   "tier": "later"
+ },
+ {
+  "file": "music-painterly",
+  "kind": "music",
+  "tier": "music",
+  "vars": 1,
+  "length_ms": 150000,
+  "use": "Background music, Painterly",
+  "prompt": "Gentle solo piano with a soft, distant string pad: a slow waltz in 3/4 at about 66 bpm, in the manner of an 1888 Parisian salon piece. Warm, luminous and dreamy, like low sun through autumn leaves. A simple lyrical melody over soft rolling left-hand chords, with plenty of space between phrases. Begins and ends quietly on the same gentle chord so it can loop. Instrumental, no vocals, no percussion, no modern instruments."
+ },
+ {
+  "file": "music-1888",
+  "kind": "music",
+  "tier": "music",
+  "vars": 1,
+  "length_ms": 150000,
+  "use": "Background music, 1888",
+  "prompt": "Sparse solo piano played on an old upright in a quiet room: a slow, hushed waltz in 3/4 at about 56 bpm, in the manner of an 1888 salon piece. Cool late-October melancholy, bare and restrained: long sustained low chords, a few wistful melody notes, much silence between phrases. Begins and ends softly on the same chord so it can loop. Instrumental, no vocals, no percussion, no modern instruments."
  }
 ]

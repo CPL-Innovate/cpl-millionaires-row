@@ -71,3 +71,13 @@ not electricity (except Brush's windmill). Sound follows the same rule as the pi
   sound, which makes "the silent bells" something you hear rather than read.
 - **Volume:** everything starts muted until the visitor turns sound on (browsers require a click).
   There will be a sound toggle in the panel.
+
+## Music (ElevenLabs Music API, paid plan)
+
+| File | Use | Length | Prompt |
+|---|---|---|---|
+| `music-painterly.mp3` | Background music, Painterly | 150 s | Gentle solo piano with a soft, distant string pad: a slow waltz in 3/4 at about 66 bpm, in the manner of an 1888 Parisian salon piece. Warm, luminous and dreamy, like low sun through autumn leaves. A simple lyrical melody over soft rolling left-hand chords, with plenty of space between phrases. Begins and ends quietly on the same gentle chord so it can loop. Instrumental, no vocals, no percussion, no modern instruments. |
+| `music-1888.mp3` | Background music, 1888 | 150 s | Sparse solo piano played on an old upright in a quiet room: a slow, hushed waltz in 3/4 at about 56 bpm, in the manner of an 1888 salon piece. Cool late-October melancholy, bare and restrained: long sustained low chords, a few wistful melody notes, much silence between phrases. Begins and ends softly on the same chord so it can loop. Instrumental, no vocals, no percussion, no modern instruments. |
+
+Generated with `model_id: music_v1`, `force_instrumental: true`. Each piece plays through, rests about
+6 s and repeats; the mix level is 0.22, under the ambience.

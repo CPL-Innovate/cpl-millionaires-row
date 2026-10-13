@@ -23,7 +23,6 @@ class SoundEngine {
   private bedBus!: GainNode; // ducked at St. Paul's
   private musicBus!: GainNode; // silent at St. Paul's
   private musicOn = true;
-  private musicStarted = false;
   private buffers = new Map<string, Promise<AudioBuffer>>();
   private beds = new Map<string, GainNode>();
   private windmill: PannerNode | null = null;
@@ -129,7 +128,10 @@ class SoundEngine {
   }
 
   private async startBeds() {
-    if (this.beds.size) return this.mixBeds();
+    if (this.beds.size) {
+      this.mixBeds();
+      return this.startMusic();
+    }
     const want: [string, string][] = [
       ['street', 'amb-street'], ['city', 'city-far'], ['map', 'amb-map'],
       ['wind-1888', 'amb-wind-bare'], ['wind-painterly', 'amb-wind-leafy'],
@@ -144,13 +146,33 @@ class SoundEngine {
     this.startMusic();
   }
 
-  // Background music: public/audio/music.mp3 if there is one, looped under everything, quiet.
+  // Background music: one piece per era (music-painterly / music-1888), quiet under everything.
+  // Each plays through, rests a few seconds and starts again, the way a pianist would repeat it;
+  // changing era fades the old piece out and starts the other from its beginning.
+  private music: { name: string; src: AudioBufferSourceNode; gain: GainNode } | null = null;
   private async startMusic() {
-    if (this.musicStarted) return this.mixMusic();
-    this.musicStarted = true;
-    const res = await fetch('/audio/music.mp3', { method: 'HEAD' }).catch(() => null);
-    if (!res?.ok || !(res.headers.get('content-type') ?? '').includes('audio')) return;
-    await this.startLoop('music', this.musicBus, 1);
+    if (!this.on || !this.ctx) return;
+    const name = `music-${this.era}`;
+    if (this.music?.name === name) return this.mixMusic();
+    if (this.music) {
+      const old = this.music;
+      this.fade(old.gain, 0, 3);
+      old.src.stop(this.ctx.currentTime + 3.1);
+    }
+    const ctx = this.ctx;
+    const gain = ctx.createGain();
+    gain.connect(this.musicBus);
+    const src = ctx.createBufferSource();
+    const me = { name, src, gain };
+    this.music = me;
+    src.buffer = await this.load(name);
+    src.connect(gain);
+    src.start();
+    src.onended = () => {
+      if (this.music !== me) return;
+      this.music = null;
+      this.timers.push(window.setTimeout(() => this.startMusic(), 6000));
+    };
     this.mixMusic();
   }
 
@@ -232,6 +254,7 @@ class SoundEngine {
   setEra(era: 'painterly' | '1888') {
     this.era = era;
     this.mixBeds();
+    this.startMusic();
   }
 
   // camera → listener, every frame
