@@ -21,6 +21,9 @@ class SoundEngine {
   ctx: AudioContext | null = null;
   private master!: GainNode;
   private bedBus!: GainNode; // ducked at St. Paul's
+  private musicBus!: GainNode; // silent at St. Paul's
+  private musicOn = true;
+  private musicStarted = false;
   private buffers = new Map<string, Promise<AudioBuffer>>();
   private beds = new Map<string, GainNode>();
   private windmill: PannerNode | null = null;
@@ -67,6 +70,9 @@ class SoundEngine {
     this.master.connect(comp).connect(ctx.destination);
     this.bedBus = ctx.createGain();
     this.bedBus.connect(this.master);
+    this.musicBus = ctx.createGain();
+    this.musicBus.gain.value = 0;
+    this.musicBus.connect(this.master);
   }
 
   private load(name: string) {
@@ -135,6 +141,26 @@ class SoundEngine {
     this.lamp = this.panner(1.5, 2.2);
     await this.startLoop('gaslamp', this.lamp, 0.5);
     this.mixBeds();
+    this.startMusic();
+  }
+
+  // Background music: public/audio/music.mp3 if there is one, looped under everything, quiet.
+  private async startMusic() {
+    if (this.musicStarted) return this.mixMusic();
+    this.musicStarted = true;
+    const res = await fetch('/audio/music.mp3', { method: 'HEAD' }).catch(() => null);
+    if (!res?.ok || !(res.headers.get('content-type') ?? '').includes('audio')) return;
+    await this.startLoop('music', this.musicBus, 1);
+    this.mixMusic();
+  }
+
+  private mixMusic() {
+    if (this.ctx) this.fade(this.musicBus, this.on && this.musicOn && !this.ducked ? 0.22 : 0, this.ducked ? 2 : 3);
+  }
+
+  setMusic(on: boolean) {
+    this.musicOn = on;
+    this.mixMusic();
   }
 
   private mixBeds() {
@@ -277,6 +303,7 @@ class SoundEngine {
     if (!this.ctx || on === this.ducked) return;
     this.ducked = on;
     this.fade(this.bedBus, on ? 0.12 : 1, on ? 2.5 : 3);
+    this.mixMusic(); // no music under the silent bells
     if (on) this.play('bell-far', { gain: 0.8, delay: 2.5 });
   }
 
@@ -286,6 +313,7 @@ class SoundEngine {
       this.play('streetcar-bell', { gain: 0.6, delay: 2.4 });
     } else if (id === 'fence') this.play('gate-iron', { gain: 0.8 });
     else if (id === 'logs') this.play('greased-logs', { gain: 0.8 });
+    else if (id === 'sleigh') this.play('sleigh-race', { gain: 0.75 });
     // 'bells' is handled by silentBells(), which the app drives from the station and the open beat
   }
 

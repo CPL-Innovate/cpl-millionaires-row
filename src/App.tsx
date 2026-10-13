@@ -41,6 +41,8 @@ settings.loadProject();
 
 const SOUND = 'mr-sound-v1';
 const readSound = () => { try { return localStorage.getItem(SOUND) === 'on'; } catch { return false; } };
+const MUSIC = 'mr-music-v1';
+const readMusic = () => { try { return localStorage.getItem(MUSIC) !== 'off'; } catch { return true; } };
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('map');
@@ -57,6 +59,7 @@ export default function App() {
   const quality = useQuality();
   const [fps, setFps] = useState(params.has('fps'));
   const [soundOn, setSoundOn] = useState(readSound);
+  const [musicOn, setMusicOn] = useState(readMusic);
   const prevMode = useRef<Mode>('map');
   const lastErase = useRef(0);
   const over = cfg.colors[palette];
@@ -113,6 +116,10 @@ export default function App() {
     return () => document.removeEventListener('click', tap);
   }, []);
   useEffect(() => sound.setEra(era), [era]);
+  useEffect(() => {
+    sound.setMusic(musicOn);
+    try { localStorage.setItem(MUSIC, musicOn ? 'on' : 'off'); } catch { /* session only */ }
+  }, [musicOn]);
   useEffect(() => {
     sound.setMode(mode);
     if (mode !== prevMode.current) {
@@ -241,6 +248,9 @@ export default function App() {
             <button className={!soundOn ? 'on' : ''} onClick={() => toggleSound(false)}>Off</button>
             <button className={soundOn ? 'on' : ''} onClick={() => toggleSound(true)}>On</button>
           </div>
+          <label className="check">
+            <input type="checkbox" checked={musicOn} disabled={!soundOn} onChange={(e) => setMusicOn(e.target.checked)} /> Music
+          </label>
           <p className="note">Generated from period descriptions, so it is an impression, like the paint. Walk to hear the ground you’re on.</p>
         </section>
 

@@ -78,6 +78,8 @@ npm run build    # type-check + production build into dist/
     falls quiet and a single bell answers from far across the city.
   - Interface sounds: pencil and paper as the street draws itself, a shimmer as the dots gather,
     the photo developing, and a card tap on buttons.
+  - **Music** (on by default once sound is on): `public/audio/music.mp3`, if present, loops
+    quietly under everything and stops at St. Paul's. No track is checked in yet.
   - The sounds are generated with ElevenLabs from the prompts in `docs/sound-brief.md`
     (`scripts/sounds.json`). `ELEVENLABS_API_KEY=… node scripts/gen-sounds.mjs tier1|tier2|all`
     fills in missing files, so delete a file and re-run it to re-roll that sound. Then run
