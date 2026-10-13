@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import gsap from 'gsap';
 import { World } from './scene/World';
@@ -10,6 +10,8 @@ import { U, applyPalette } from './gl/uniforms';
 import { settings, useEra, useQuality, useSettings } from './settings/store';
 import { ERAS, QUALITIES } from './settings/schema';
 import { PerfProbe } from './ui/Perf';
+import { sound } from './audio/engine';
+import { AudioDirector } from './audio/AudioDirector';
 import { GeneratorPanel } from './ui/GeneratorPanel';
 import './App.css';
 
@@ -37,6 +39,9 @@ U.uLookLines.value = LOOKS[initialLook].lines;
 const initialStation = STATIONS.some((s) => s.id === params.get('station')) ? params.get('station')! : null;
 settings.loadProject();
 
+const SOUND = 'mr-sound-v1';
+const readSound = () => { try { return localStorage.getItem(SOUND) === 'on'; } catch { return false; } };
+
 export default function App() {
   const [mode, setMode] = useState<Mode>('map');
   const [palette, setPalette] = useState<PaletteId>(initialPalette);
@@ -51,6 +56,9 @@ export default function App() {
   const era = useEra();
   const quality = useQuality();
   const [fps, setFps] = useState(params.has('fps'));
+  const [soundOn, setSoundOn] = useState(readSound);
+  const prevMode = useRef<Mode>('map');
+  const lastErase = useRef(0);
   const over = cfg.colors[palette];
   const paper = over?.paper ?? PALETTES[palette].paper;
 
@@ -74,11 +82,49 @@ export default function App() {
   useEffect(() => {
     const i = LOOKS.findIndex((l) => l.id === look);
     if (U.uLookTo.value === i) return;
+    sound.ui(look === 'wash' ? 'wash' : look === 'texture' ? 'photo' : 'sketch');
     U.uLookFrom.value = U.uLookTo.value;
     U.uLookTo.value = i;
     gsap.fromTo(U.uLookT, { value: 0 }, { value: 1, duration: 1.4, ease: 'power1.inOut' });
     gsap.to(U.uLookLines, { value: LOOKS[i].lines, duration: 1.4, ease: 'power1.inOut' });
   }, [look]);
+
+  // sound: turning it on needs a user gesture, so a remembered "on" waits for the first one
+  const toggleSound = (on: boolean) => {
+    setSoundOn(on);
+    try { localStorage.setItem(SOUND, on ? 'on' : 'off'); } catch { /* blocked storage: session only */ }
+    if (on) sound.enable();
+    else sound.disable();
+  };
+  useEffect(() => {
+    if (!soundOn || sound.enabled) return;
+    const start = () => sound.enable();
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+    };
+  }, [soundOn]);
+  // every button answers with a soft card tap
+  useEffect(() => {
+    const tap = (e: MouseEvent) => { if ((e.target as HTMLElement).closest('button')) sound.ui('tap'); };
+    document.addEventListener('click', tap);
+    return () => document.removeEventListener('click', tap);
+  }, []);
+  useEffect(() => sound.setEra(era), [era]);
+  useEffect(() => {
+    sound.setMode(mode);
+    if (mode !== prevMode.current) {
+      sound.ui('paper');
+      if (mode === 'street') {
+        sound.ui('sketch', 0.6); // the street drawing itself
+        sound.ui('gather', 1.4); // and the dots settling
+      }
+    }
+    prevMode.current = mode;
+  }, [mode]);
+  useEffect(() => { if (beat) sound.beat(beat); }, [beat]);
 
   useEffect(() => {
     if (!initialStation) return;
@@ -90,6 +136,10 @@ export default function App() {
   const station = STATIONS.find((s) => s.id === stationId)!;
   const atStation = arrived === stationId && mode === 'street';
   const activeBeat = BEATS.find((b) => b.id === beat) ?? null;
+  // the silent bells: at St. Paul's (or with its story open) the street falls quiet
+  useEffect(() => {
+    sound.silentBells(mode === 'street' && (arrived === 'st-pauls' || beat === 'bells'));
+  }, [mode, arrived, beat, soundOn]);
   const building = useMemo(() => BUILDINGS.find((b) => stationId.startsWith(b.id.split('-')[0])), [stationId]);
 
   const goStation = (id: string) => {
@@ -102,6 +152,7 @@ export default function App() {
   const onArrive = (s: Station) => {
     setArrived(s.id);
     if (s.photo) {
+      sound.ui('photo', 0.3);
       const p = { v: 0 };
       gsap.to(p, { v: 1, duration: 1.8, delay: 0.3, ease: 'power1.inOut', onUpdate: () => setPhoto(p.v) });
     }
@@ -121,6 +172,7 @@ export default function App() {
         </Suspense>
         <CameraRig mode={mode} stationId={stationId} onArrive={onArrive} />
         {fps && <PerfProbe />}
+        <AudioDirector />
       </Canvas>
 
       <div className="grain" />
@@ -167,7 +219,10 @@ export default function App() {
 
         <section>
           <h3>Evidence</h3>
-          <input type="range" min={0} max={1} step={0.01} value={evidence} onChange={(e) => setEvidence(+e.target.value)} />
+          <input type="range" min={0} max={1} step={0.01} value={evidence} onChange={(e) => {
+            setEvidence(+e.target.value);
+            if (performance.now() - lastErase.current > 450) { lastErase.current = performance.now(); sound.ui('erase'); }
+          }} />
           <div className="ends"><span>Full drawing</span><span>Evidence only</span></div>
           <ul className="legend">
             {LEGEND.map((l) => (
@@ -178,6 +233,15 @@ export default function App() {
             ))}
           </ul>
           <p className="note">Colour is inferred everywhere: every photograph is black and white.</p>
+        </section>
+
+        <section>
+          <h3>Sound</h3>
+          <div className="seg">
+            <button className={!soundOn ? 'on' : ''} onClick={() => toggleSound(false)}>Off</button>
+            <button className={soundOn ? 'on' : ''} onClick={() => toggleSound(true)}>On</button>
+          </div>
+          <p className="note">Generated from period descriptions, so it is an impression, like the paint. Walk to hear the ground you’re on.</p>
         </section>
 
         <section>

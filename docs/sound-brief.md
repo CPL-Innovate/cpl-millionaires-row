@@ -10,8 +10,9 @@ not electricity (except Brush's windmill). Sound follows the same rule as the pi
 - **Takes:** generate 3–4 takes of each and keep the best. For anything with "vars" below, keep that
   many good takes as `-1`, `-2`, … so repeats don't sound identical.
 - **Format:** MP3 44.1 kHz, 128 kbps or better.
-- **Delivery:** drop the files into `public/audio/` with the filenames below. I'll trim, level and
-  wire them up.
+- **Delivery:** `scripts/gen-sounds.mjs` generates them from `scripts/sounds.json` into
+  `public/audio/` (tiers 1 and 2 generated 2026-10-13 for ~3,200 credits at 10 credits/second), and
+  `scripts/normalize-audio.py` levels them.
 - **Prompts:** end every prompt with "no music, no voices" unless voices are wanted. Period
   matters: if a take has a car, engine or modern hum in it, discard it.
 - **Loops:** set `loop: true` and the longest duration (30 s). Longer loops repeat less obviously.

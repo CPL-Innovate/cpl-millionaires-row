@@ -68,6 +68,21 @@ npm run build    # type-check + production build into dist/
   - Settings autosave in the browser. You can save named presets and export or import JSON.
   - In dev, **Save as project default** writes `public/settings.json`, which every build loads as
     its starting look.
+- **Sound** (off until turned on; browsers need a click first):
+  - Background loops for the street, a distant 1880s city and the wind. 1888 gets wind in bare
+    elms, Painterly a leafy rustle. Map mode is a hushed reading room.
+  - In the scene: Brush's windmill and the nearest gas lamp get louder as you approach.
+    Carriages trot past along Euclid, and crows call from the trees (more of them in 1888).
+  - Footsteps match what you're walking on: roadway, flagstone or lawn.
+  - Story beats have their own sounds. At St. Paul's, or with "The silent bells" open, the street
+    falls quiet and a single bell answers from far across the city.
+  - Interface sounds: pencil and paper as the street draws itself, a shimmer as the dots gather,
+    the photo developing, and a card tap on buttons.
+  - The sounds are generated with ElevenLabs from the prompts in `docs/sound-brief.md`
+    (`scripts/sounds.json`). `ELEVENLABS_API_KEY=… node scripts/gen-sounds.mjs tier1|tier2|all`
+    fills in missing files, so delete a file and re-run it to re-roll that sound. Then run
+    `python3 scripts/normalize-audio.py` to level everything to −20 LUFS. The mix is set in
+    `src/audio/engine.ts`.
 - **Performance:** Full or Light (fewer, larger bark and ground dots at 1× pixel density; the
   default on touch devices). **Show frame rate** (or `?fps`) puts frame time, point count and
   draw calls at the top of the screen.
@@ -168,8 +183,9 @@ In priority order, from the last review:
 3. ~~Dots gathering on arrival, and station photos dissolving in at their edges.~~ Done.
 4. ~~A frame-rate counter and a "light" preset.~~ Done (`?fps`, Performance → Light). Next:
    measure on a phone.
-5. Later: sound (including the silent bells of St. Paul's), the winter sleigh-race moment (mostly a
-   Generator preset), and figures and carriages drawn in dots.
+5. ~~Sound.~~ First pass in: 30 generated sounds, needing a listening pass to re-roll weak takes.
+6. Later: the winter sleigh-race moment (a Generator preset, plus the winter sounds in the brief),
+   and figures and carriages drawn in dots.
 
 ## Dev-only helpers
 

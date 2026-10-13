@@ -26,6 +26,9 @@ interface Props {
   onArrive: (s: Station) => void;
 }
 
+// read by the audio director: footsteps only when the visitor is walking, not during camera moves
+export const walkState = { moving: false, hurry: false };
+
 export function CameraRig({ mode, stationId, onArrive }: Props) {
   const { camera, gl } = useThree();
   const controls = useRef<MapControlsImpl>(null);
@@ -146,11 +149,14 @@ export function CameraRig({ mode, stationId, onArrive }: Props) {
   }, [mode, stationId]);
 
   useFrame((_, dt) => {
+    walkState.moving = false;
     if (mode !== 'street' || tweening.current) return;
     const k = keys.current;
     const speed = (k['shift'] ? 14 : 5) * dt;
     const f = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
     const r = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
+    walkState.moving = f !== 0 || r !== 0;
+    walkState.hurry = !!k['shift'];
     const yaw = look.current.yaw;
     camera.position.x += (-Math.sin(yaw) * f + Math.cos(yaw) * r) * speed;
     camera.position.z += (-Math.cos(yaw) * f - Math.sin(yaw) * r) * speed;

@@ -1,0 +1,272 @@
+[
+ {
+  "file": "amb-street",
+  "vars": 1,
+  "use": "Street-mode bed, everywhere",
+  "duration": 30.0,
+  "loop": true,
+  "influence": 0.4,
+  "prompt": "Quiet residential avenue in the 1880s on a calm late-October afternoon: soft wind, a horse trotting on a packed dirt street far away, a few sparrows chirping, a dog barking very far off. Spacious and peaceful. No cars, no engines, no music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "amb-wind-bare",
+  "vars": 1,
+  "use": "Wind layer for **1888** (bare elms)",
+  "duration": 30.0,
+  "loop": true,
+  "influence": 0.5,
+  "prompt": "Cool autumn wind moving through tall bare elm branches, soft airy gusts and faint whistling, bare twigs knocking gently, a few dry leaves skittering along the ground. No birds, no traffic, no music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "amb-wind-leafy",
+  "vars": 1,
+  "use": "Wind layer for **Painterly** (crowns in leaf)",
+  "duration": 30.0,
+  "loop": true,
+  "influence": 0.5,
+  "prompt": "Gentle breeze through large trees still full of dry autumn leaves, a soft continuous rustle that swells and settles. Calm and warm. No birds, no traffic, no music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "amb-map",
+  "vars": 1,
+  "use": "Map mode (the 1881 plate)",
+  "duration": 30.0,
+  "loop": true,
+  "influence": 0.4,
+  "prompt": "Hushed library reading room: a slow ticking wall clock, an occasional soft page turn, the quiet air of a large room. No voices, no music.",
+  "tier": "tier1"
+ },
+ {
+  "file": "step-flagstone",
+  "vars": 1,
+  "use": "Walking on sidewalks",
+  "duration": 8.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "Eight separate footsteps of leather-soled boots on stone flagstones, walking at an even pace, about one step per second, close and dry, no background. No music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "step-dirt",
+  "vars": 1,
+  "use": "Walking on the roadway",
+  "duration": 8.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "Eight separate footsteps of leather boots on a packed dirt and gravel road, even walking pace, about one step per second, close, slight crunch, no background. No music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "step-lawn",
+  "vars": 1,
+  "use": "Walking on lawns",
+  "duration": 8.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "Eight separate footsteps on short mown grass scattered with dry fallen leaves, even walking pace, about one step per second, soft crunch of leaves, close, no background. No music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "carriage-pass",
+  "vars": 2,
+  "use": "A carriage passes now and then",
+  "duration": 14.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "A single horse-drawn carriage passing on a packed dirt street: trotting hooves, iron-rimmed wooden wheels rolling and crunching, harness bells and tack jingling. It approaches from the distance, passes close by, and fades away. 1880s. No engines, no music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "windmill",
+  "vars": 1,
+  "use": "Brush's windmill (station + beat 6)",
+  "duration": 30.0,
+  "loop": true,
+  "influence": 0.45,
+  "prompt": "A huge 19th-century wooden wind turbine turning slowly in a steady wind: the deep rhythmic whoosh of a sixty-foot rotor with many wooden blades, a creaking timber tower, groaning iron gears, and a faint low electric dynamo hum. No music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "ui-sketch",
+  "vars": 1,
+  "use": "The street drawing itself on arrival",
+  "duration": 6.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "Graphite pencil sketching quickly on rough paper, fast scratchy hatching strokes, close-up and intimate, nothing else. No music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "ui-gather",
+  "vars": 1,
+  "use": "Dots gathering on arrival",
+  "duration": 3.0,
+  "loop": false,
+  "influence": 0.4,
+  "prompt": "A soft granular shimmer, like fine sand or seeds gently pouring and settling onto paper, airy and delicate, rising and then resolving. No music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "ui-photo",
+  "vars": 1,
+  "use": "The CPL photograph inking in",
+  "duration": 4.0,
+  "loop": false,
+  "influence": 0.4,
+  "prompt": "A photographic print developing in a darkroom tray: a gentle slosh of liquid, then a soft rising shimmer as the image appears. Quiet and subtle. No music, no voices.",
+  "tier": "tier1"
+ },
+ {
+  "file": "ui-tap",
+  "vars": 3,
+  "use": "Buttons and pins",
+  "duration": 0.5,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "A single soft tap of a fingertip on thick card stock, very short and dry.",
+  "tier": "tier1"
+ },
+ {
+  "file": "bell-far",
+  "vars": 1,
+  "use": "**The silent bells** (St. Paul's). At St. Paul's the ambience drops away and a bell answers from far across the city: the silence is the point.",
+  "duration": 12.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "A single church bell tolling three slow strokes very far away across a city, faint, with a long natural reverb tail fading to silence. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "horse-snort",
+  "vars": 2,
+  "use": "Near hitching posts and passing carriages",
+  "duration": 3.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "A horse standing still, snorting softly and shaking its head so the harness jingles, close. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "gate-iron",
+  "vars": 1,
+  "use": "**Seven thousand dollars of fence** (Wade gate piers)",
+  "duration": 4.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "A heavy wrought-iron gate swinging slowly open on old hinges: a long creak, then a deep metallic clank as it stops. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "misfire",
+  "vars": 1,
+  "use": "**The misfire** (beat 1)",
+  "duration": 3.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "An old revolver misfiring: a hammer falls with a sharp dry metallic click on a dud cartridge, a beat of silence, then a second click. No gunshot, no music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "streetcar-bell",
+  "vars": 1,
+  "use": "**The misfire** (the streetcar conductor)",
+  "duration": 3.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "The hand-rung bell of an 1880s horse-drawn streetcar, two quick bright dings at mid distance. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "greased-logs",
+  "vars": 1,
+  "use": "**The house on greased logs** (Rockefeller)",
+  "duration": 10.0,
+  "loop": false,
+  "influence": 0.4,
+  "prompt": "A wooden house being slowly moved on greased logs: deep timber groaning and creaking, ropes straining, logs rolling, a few distant shouted work calls. Slow and heavy.",
+  "tier": "tier2"
+ },
+ {
+  "file": "crows",
+  "vars": 2,
+  "use": "Occasional birds in bare trees (1888)",
+  "duration": 6.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "Two or three crows cawing in bare trees at mid distance on a cool autumn afternoon. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "city-far",
+  "vars": 1,
+  "use": "Very faint layer under everything",
+  "duration": 30.0,
+  "loop": true,
+  "influence": 0.35,
+  "prompt": "A 19th-century industrial city heard from far away in a quiet suburb: a faint steam locomotive whistle in the distance, a low rumble of a rail yard, a distant factory bell, all very soft and far. No modern sounds, no music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "gaslamp",
+  "vars": 1,
+  "use": "Close to a gas lamp",
+  "duration": 10.0,
+  "loop": true,
+  "influence": 0.6,
+  "prompt": "Close-up of a burning gas street lamp: a clearly audible, steady soft hiss of gas through the burner with a faint flutter of the flame. Constant and even. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "ui-wash",
+  "vars": 1,
+  "use": "Switching to the Watercolour look",
+  "duration": 2.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "A wet watercolour brush making one long sweeping stroke across textured paper. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "ui-erase",
+  "vars": 1,
+  "use": "Evidence slider",
+  "duration": 2.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "A pencil eraser rubbing on paper in short quick strokes, close. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "ui-paper",
+  "vars": 1,
+  "use": "Map ↔ street descent",
+  "duration": 2.5,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "A large sheet of paper lifted and turned over with a soft airy whoosh. No music, no voices.",
+  "tier": "tier2"
+ },
+ {
+  "file": "sleigh-race",
+  "vars": 1,
+  "use": "**The starting line** (winter preset)",
+  "duration": 22.0,
+  "loop": false,
+  "influence": 0.4,
+  "prompt": "Dozens of horse-drawn sleighs racing past on a snowy avenue: many sleigh bells jingling, hooves muffled in packed snow, runners hissing, a crowd cheering and calling out, sweeping past and away into the distance.",
+  "tier": "later"
+ },
+ {
+  "file": "amb-winter",
+  "vars": 1,
+  "use": "Winter bed",
+  "duration": 30.0,
+  "loop": true,
+  "influence": 0.4,
+  "prompt": "A still, snowy residential avenue in the 1880s: soft muffled quiet, a light wind, a distant sleigh bell now and then. No cars, no music, no voices.",
+  "tier": "later"
+ }
+]
