@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { MapControls } from '@react-three/drei';
 import type { MapControls as MapControlsImpl } from 'three-stdlib';
 import gsap from 'gsap';
+import { walkState } from './walk';
 import { STATIONS, type Station } from '../data/site';
 import { U } from '../gl/uniforms';
 
@@ -25,9 +26,6 @@ interface Props {
   stationId: string;
   onArrive: (s: Station) => void;
 }
-
-// read by the audio director: footsteps only when the visitor is walking, not during camera moves
-export const walkState = { moving: false, hurry: false };
 
 export function CameraRig({ mode, stationId, onArrive }: Props) {
   const { camera, gl } = useThree();

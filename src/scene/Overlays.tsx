@@ -36,7 +36,9 @@ export function PhotoGhost({ station, opacity }: { station: Station; opacity: nu
   );
 }
 
-export function BeatPins({ onPick, active }: { onPick: (id: string) => void; active: string | null }) {
+// Both overlays stay mounted and hide when not in use: each drei <Html> owns a React root, and
+// unmounting them on a mode switch (or from inside their own click) tore those roots down mid-render.
+export function BeatPins({ onPick, active, show }: { onPick: (id: string) => void; active: string | null; show: boolean }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const tmp = useMemo(() => new THREE.Vector3(), []);
   // only nearby beats show, so pins don't pile up through buildings from across the block
@@ -44,7 +46,7 @@ export function BeatPins({ onPick, active }: { onPick: (id: string) => void; act
     BEATS.forEach((b, i) => {
       const el = refs.current[i];
       if (!el) return;
-      const near = camera.position.distanceTo(tmp.set(...b.position)) < (b.id === 'windmill' || b.id === 'bells' ? 200 : 90);
+      const near = show && camera.position.distanceTo(tmp.set(...b.position)) < (b.id === 'windmill' || b.id === 'bells' ? 200 : 90);
       el.style.opacity = near ? '1' : '0';
       el.style.pointerEvents = near ? 'auto' : 'none';
     });
@@ -56,6 +58,7 @@ export function BeatPins({ onPick, active }: { onPick: (id: string) => void; act
           <button
             ref={(el) => { refs.current[i] = el; }}
             className={`pin ${active === b.id ? 'on' : ''}`}
+            style={{ opacity: 0, pointerEvents: 'none' }} // start hidden; the frame loop shows nearby pins
             onClick={() => onPick(b.id)}
             title={b.title}
           >
@@ -67,7 +70,7 @@ export function BeatPins({ onPick, active }: { onPick: (id: string) => void; act
   );
 }
 
-export function PlateLabels({ onPick }: { onPick: (stationId: string) => void }) {
+export function PlateLabels({ onPick, show }: { onPick: (stationId: string) => void; show: boolean }) {
   const stationFor = (id: string) => (STATIONS.find((s) => s.id === id || id.startsWith(s.id)) ?? STATIONS[0]).id;
   return (
     <>
@@ -79,7 +82,12 @@ export function PlateLabels({ onPick }: { onPick: (stationId: string) => void })
         const dy = i < 0 ? 0 : i % 2 === 0 ? -34 : 30;
         return (
           <Html key={b.id} position={[x, 0, z]} center zIndexRange={[20, 0]}>
-            <button className="lot" style={{ transform: `translateY(${dy}px)` }} onClick={() => onPick(stationFor(b.id))}>
+            <button
+              className="lot"
+              style={{ transform: `translateY(${dy}px)`, visibility: show ? 'visible' : 'hidden' }}
+              tabIndex={show ? 0 : -1}
+              onClick={() => onPick(stationFor(b.id))}
+            >
               <b>{b.short}</b>
               <i>1881 plate: {b.plateLabel}</i>
             </button>

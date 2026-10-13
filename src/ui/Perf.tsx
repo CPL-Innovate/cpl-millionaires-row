@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 
 // Frame-rate probe. Lives inside the Canvas, samples every frame, and twice a second writes a
@@ -17,7 +17,9 @@ export interface PerfSample {
 export function PerfProbe() {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
-  if (import.meta.env.DEV) (window as unknown as { __scene: typeof scene }).__scene = scene;
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as { __scene: typeof scene }).__scene = scene;
+  }, [scene]);
   const buf = useRef<number[]>([]);
   const last = useRef(0);
   const since = useRef(0);

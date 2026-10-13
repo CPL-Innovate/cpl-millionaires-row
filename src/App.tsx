@@ -164,8 +164,8 @@ export default function App() {
         <color attach="background" args={[paper]} />
         <Suspense fallback={null}>
           <World />
-          {mode === 'map' && <PlateLabels onPick={goStation} />}
-          {mode === 'street' && <BeatPins onPick={(id) => setBeat(beat === id ? null : id)} active={beat} />}
+          <PlateLabels onPick={goStation} show={mode === 'map'} />
+          <BeatPins onPick={(id) => setBeat(beat === id ? null : id)} active={beat} show={mode === 'street'} />
         </Suspense>
         <Suspense fallback={null}>
           {atStation && station.photo && <PhotoGhost station={station} opacity={photo} />}

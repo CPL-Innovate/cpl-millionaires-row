@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { BUILDINGS, CASE, EUCLID, euclidCentreZ, plateToWorld } from '../data/site';
-import { walkState } from '../scene/CameraRig';
+import { walkState } from '../scene/walk';
 import { sound, type Surface } from './engine';
 
 // Inside the Canvas: keeps the Web Audio listener on the camera, the windmill and the nearest gas
