@@ -6,8 +6,9 @@ at the image centre. Plate 3 supplies everything west of Case, Plate 5 everythin
 seam runs exactly along the Case centreline and both streets continue straight across it.
 
 The plates disagree slightly with each other (Case meets Euclid at ~93° on Plate 3, ~88° on
-Plate 5; the Euclid-to-Prospect lot depth differs by ~10%) — ordinary engraving distortion. The
-affine fit absorbs it; the lot depth uses the mean of the two plates. Scale ≈ 0.41 m/px, from the
+Plate 5; the Euclid-to-Prospect lot depth differs by ~5%) — ordinary engraving distortion. The
+affine fits absorb it, refined against street lines measured on both sides of the seam (see FIX3 /
+FIX5); the lot depth uses the mean of the two plates. Scale ≈ 0.41 m/px, from the
 plates' 200 ft/inch scale bars.
 
 usage: compose_plate.py plate3.jpg plate5.jpg out.jpg
@@ -46,6 +47,40 @@ M5 = affine(
     [P5['case'], P5['prospect'], P5['euclid_e'], P5['case_n']],
     [C, C + [0, DEPTH], C + [dist(P5['case'], P5['euclid_e']), 0], C - [0, NORTH]],
 )
+
+
+# Refinement. The four-point fits above left Euclid tilted ~1.7° (falling to the east) on both
+# plates, Case sheared on Plate 3, and a ~20 px step in Euclid and Prospect at the seam. These are
+# line positions measured on that first composite (darkness profiles across each street), each
+# pulled to where the straight-street frame puts it. An E–W line point fixes y only ('v'); a N–S
+# line point fixes x only ('u'). Both plates are pulled to the same targets, so they meet at the seam.
+EUC_H = 26.75          # half the engraved Euclid lot-line-to-lot-line width (55 px P3, 52 px P5)
+PROS_C, PROS_H = 1062, 14  # Prospect centre (mean Euclid→Prospect depth, 371 / 351 px) and half width
+CASE_X = 11            # Case lines either side of the seam (centreline at x = W/2)
+FIX3 = [('v', x, y, 700 - EUC_H) for x, y in [(520, 663), (720, 670), (950, 677)]] + \
+       [('v', x, y, 700 + EUC_H) for x, y in [(520, 719), (720, 726), (950, 732)]] + \
+       [('v', x, y, PROS_C - PROS_H) for x, y in [(520, 1049), (720, 1055), (950, 1061)]] + \
+       [('v', x, y, PROS_C + PROS_H) for x, y in [(520, 1080), (720, 1085), (950, 1090)]] + \
+       [('u', x, y, W / 2 - CASE_X) for x, y in [(980, 425), (984, 600), (990, 815), (994, 965), (1001, 1200)]]
+FIX5 = [('v', x, y, 700 - EUC_H) for x, y in [(1050, 657), (1280, 663), (1520, 669)]] + \
+       [('v', x, y, 700 + EUC_H) for x, y in [(1050, 709), (1280, 714), (1520, 720)]] + \
+       [('v', x, y, PROS_C - PROS_H) for x, y in [(1050, 1021), (1280, 1028)]] + \
+       [('v', x, y, PROS_C + PROS_H) for x, y in [(1050, 1047), (1280, 1054)]] + \
+       [('u', x, y, W / 2 + CASE_X) for x, y in [(1008, 425), (1009, 600), (1011, 815), (1012, 965), (1014, 1200)]]
+
+
+def refine(fixes):
+    """Correction K (3×3) in output space: y' = a·y + c·x + b (level + depth), x' = x + f·(y − 700) + e (shear + offset)."""
+    vs = [(x, y, t) for k, x, y, t in fixes if k == 'v']
+    us = [(x, y, t) for k, x, y, t in fixes if k == 'u']
+    a, c, b = np.linalg.lstsq(np.array([[y, x, 1] for x, y, _ in vs], float), np.array([t for *_, t in vs], float), rcond=None)[0]
+    f, e = np.linalg.lstsq(np.array([[y - 700, 1] for x, y, _ in us], float), np.array([t - x for x, y, t in us], float), rcond=None)[0]
+    return np.array([[1, f, e - 700 * f], [c, a, b], [0, 0, 1]])
+
+
+K3, K5 = refine(FIX3), refine(FIX5)
+M3 = (K3 @ np.vstack([M3, [0, 0, 1]]))[:2]
+M5 = (K5 @ np.vstack([M5, [0, 0, 1]]))[:2]
 
 
 def apply(M, p):
