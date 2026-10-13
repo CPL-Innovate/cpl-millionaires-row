@@ -120,7 +120,9 @@ public/
 - **Plate georeferencing:** each plate gets its own least-squares affine fit to a frame where
   Euclid is straight and Case perpendicular, using four street control points per plate. A second
   pass pulls street lines measured on both plates (Euclid and Prospect lot lines, the Case lines)
-  onto shared targets, so the streets run straight across the seam, which runs along Case.
+  onto shared targets, so the streets run straight across the seam, which runs along Case. The
+  targets come from the engraving: at the scale bar's 0.40 m/px, Euclid's lot lines are 74 px apart
+  (99 ft, as annotated) and Case's 46 px (60 ft), so both centrelines land on the 3D street's.
 
 ## Honest limits
 
