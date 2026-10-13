@@ -175,8 +175,11 @@ function strokeDots(out: number[], lines: number[], spacing: number, size: numbe
   }
 }
 
-// bark: dots on the surface of each limb, lit by which side faces the sun
-function barkDots(out: number[], seg: number[], r: () => number) {
+// bark: dots on the surface of each limb, lit by which side faces the sun. density < 1 drops dots
+// and enlarges the rest to keep the limbs solid; it draws the same random numbers either way, so
+// the trees (and everything generated after them) don't change between Full and Light
+function barkDots(out: number[], seg: number[], r: () => number, density = 1) {
+  const grow = 1 + (1 - Math.min(1, density)) * 0.7;
   const a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3(), p1 = new THREE.Vector3(), p2 = new THREE.Vector3(), q = new THREE.Vector3();
   for (let i = 0; i < seg.length; i += 7) {
     a.set(seg[i], seg[i + 1], seg[i + 2]);
@@ -199,8 +202,12 @@ function barkDots(out: number[], seg: number[], r: () => number) {
         const t = k / n;
         const light = clamp01(0.45 + 0.45 * q.dot(SUN) + (r() - 0.5) * 0.35);
         const tint = r() < 0.06 ? 2.5 + r() * 2 : 10 + light * 3.6; // a few lichen-green flecks
-        out.push(a.x + d.x * len * t + q.x * rad * 0.85, a.y + d.y * len * t + q.y * rad * 0.85, a.z + d.z * len * t + q.z * rad * 0.85,
-          Math.max(0.07, rad * 1.05) * (0.8 + r() * 0.6), tint, r());
+        const size = Math.max(0.07, rad * 1.05) * (0.8 + r() * 0.6) * grow, seed = r();
+        // twigs thin more gently, or they break up into specks
+        const keep = Math.min(1, rad > 0.06 ? density : Math.sqrt(density));
+        if (seed > keep) continue;
+        const s = seed / keep; // kept seeds stay uniform in [0, 1)
+        out.push(a.x + d.x * len * t + q.x * rad * 0.85, a.y + d.y * len * t + q.y * rad * 0.85, a.z + d.z * len * t + q.z * rad * 0.85, size, tint, s);
       }
     }
   }
@@ -255,7 +262,7 @@ function StreetKit() {
         const [bx, bz] = tx(v.wood[i + 3], v.wood[i + 5]);
         seg.push(ax, v.wood[i + 1] * sc, az, bx, v.wood[i + 4] * sc, bz, v.wood[i + 6] * sc);
       }
-      barkDots(woodArr, seg, r);
+      barkDots(woodArr, seg, r, g.barkDensity);
       // impressionist crowns: clusters of opaque dots around the branch anchors. Each dot's colour
       // comes from where it sits in the crown relative to the light — violet/deep green in shadow,
       // green and yellow-green in the body, gold and cream where the low October sun catches it,

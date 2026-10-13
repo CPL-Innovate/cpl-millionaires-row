@@ -68,6 +68,9 @@ npm run build    # type-check + production build into dist/
   - Settings autosave in the browser. You can save named presets and export or import JSON.
   - In dev, **Save as project default** writes `public/settings.json`, which every build loads as
     its starting look.
+- **Performance:** Full or Light (fewer, larger bark and ground dots at 1× pixel density; the
+  default on touch devices). **Show frame rate** (or `?fps`) puts frame time, point count and
+  draw calls at the top of the screen.
 - **Deep links:** `?station=everett&palette=sepia&evidence=0.6&look=wash&era=1888&gen` (`look` is
   `pencil`, `wash` or `texture`; `era` is `painterly` or `1888`)
 
@@ -139,8 +142,10 @@ public/
 - Station camera positions are eyeballed. fSpy camera solves are pending.
 - The environment (planting, lawns, colours) is an impression, not evidence. The current default
   look is painterly, not historically calibrated (see Next steps).
-- Performance has not been measured on real hardware. The scene draws roughly 600k points; Quest
-  headsets are not yet a target of this build.
+- Performance: on an Apple M2 Pro at 2× pixel density, Full holds the display's 120 fps cap
+  (8.4 ms a frame, 95th percentile 10 ms) with about 1.5M points, 60% of them bark. Light draws
+  about 880k points at 1× and is the default on touch devices. Phones and Quest headsets are
+  still unmeasured.
 
 ## Next steps (pinned)
 
@@ -157,7 +162,8 @@ In priority order, from the last review:
 2. ~~An "1888" preset alongside a "Painterly" one.~~ Done: Painterly is the default, 1888 the
    toggle. Still worth calibrating 1888's colours against the photographs with L&GH.
 3. **Dots gathering on arrival,** and station photos dissolving in at their edges.
-4. **A frame-rate counter and a "light" preset,** to measure headroom before more look work.
+4. ~~A frame-rate counter and a "light" preset.~~ Done (`?fps`, Performance → Light). Next:
+   measure on a phone.
 5. Later: sound (including the silent bells of St. Paul's), the winter sleigh-race moment (mostly a
    Generator preset), and figures and carriages drawn in dots.
 

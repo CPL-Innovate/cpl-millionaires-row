@@ -87,6 +87,7 @@ export const GROUPS: Group[] = [
       { key: 'prune', label: 'Asymmetry', min: 0, max: 0.6, step: 0.01, def: 0.22 },
       { key: 'lean', label: 'Lean', min: 0, max: 0.4, step: 0.005, def: 0.1 },
       { key: 'reach', label: 'Reach over street', min: 0, max: 0.5, step: 0.005, def: 0.12 },
+      { key: 'barkDensity', label: 'Bark dot density', min: 0.2, max: 1.5, step: 0.01, def: 1, hint: 'Bark is most of the scene’s dots; Light halves it' },
     ],
   },
   {
@@ -140,4 +141,17 @@ export const ERA_1888 = {
     graphite: { foliage: ['#8a9655', '#a2a95e', '#bbb869', '#d4c575', '#ead48a', '#f7ebc6', '#c66a48', '#a07f5e'] },
     sepia: { foliage: ['#948748', '#ab9d52', '#c4b062', '#dbc277', '#ecd69c', '#f8ebcb', '#b86048', '#94714c'] },
   } as Partial<Record<string, { foliage?: string[] }>>,
+};
+
+// Quality: "Light" trades dot budget and pixel density for frame rate (phones, older laptops). It
+// sits over whichever era is showing and isn't edited by the Generator.
+export type QualityId = 'full' | 'light';
+export const QUALITIES: { id: QualityId; label: string; dpr: [number, number] }[] = [
+  { id: 'full', label: 'Full', dpr: [1, 2] },
+  { id: 'light', label: 'Light', dpr: [1, 1] },
+];
+export const QUALITY_LIGHT: Record<string, number> = {
+  barkDensity: 0.45, // bark is ~60% of all dots in Full
+  nearCount: 70000, farCount: 45000, groundDot: 1.25, // fewer, slightly larger ground dots
+  shrubs: 40, leaves: 50,
 };

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { PaletteId } from '../palettes';
-import { DEFAULTS, ERA_1888, REBUILD_KEYS, type EraId, type RampKey } from './schema';
+import { DEFAULTS, ERA_1888, QUALITY_LIGHT, REBUILD_KEYS, type EraId, type QualityId, type RampKey } from './schema';
 
 // Settings = numeric parameters + per-palette colour overrides. Precedence on load:
 // schema defaults < project defaults (public/settings.json) < this browser's autosave.
@@ -26,6 +26,7 @@ export interface Settings {
 const AUTOSAVE = 'mr-settings-v1';
 const PRESETS = 'mr-presets-v1';
 const ERA = 'mr-era-v1';
+const QUALITY = 'mr-quality-v1';
 
 const clone = (s: Settings): Settings => JSON.parse(JSON.stringify(s));
 const merge = (base: Settings, over?: Partial<Settings> | null): Settings => ({
@@ -59,18 +60,28 @@ function mergeColors(...layers: (Colors | undefined)[]): Colors {
 
 const urlEra = new URLSearchParams(location.search).get('era');
 let era: EraId = urlEra === '1888' || urlEra === 'painterly' ? urlEra : (readLocal<EraId>(ERA) ?? 'painterly');
+// touch devices start on Light unless this browser has chosen
+const urlQuality = new URLSearchParams(location.search).get('quality');
+let quality: QualityId =
+  urlQuality === 'light' || urlQuality === 'full'
+    ? urlQuality
+    : (readLocal<QualityId>(QUALITY) ?? (matchMedia('(pointer: coarse)').matches ? 'light' : 'full'));
 
 let project: Settings = { v: { ...DEFAULTS }, colors: {} };
 let state: Settings = merge(project, readLocal<Settings>(AUTOSAVE));
 
 function effective(s: Settings): Settings {
-  if (era === 'painterly') return s;
-  const mine = s.eras?.[era] ?? {};
-  return {
-    v: { ...s.v, ...ERA_1888.v, ...(mine.v ?? {}) },
-    colors: mergeColors(s.colors, ERA_1888.colors as Colors, mine.colors),
-    eras: s.eras,
-  };
+  let out = s;
+  if (era !== 'painterly') {
+    const mine = s.eras?.[era] ?? {};
+    out = {
+      v: { ...s.v, ...ERA_1888.v, ...(mine.v ?? {}) },
+      colors: mergeColors(s.colors, ERA_1888.colors as Colors, mine.colors),
+      eras: s.eras,
+    };
+  }
+  if (quality === 'light') out = { ...out, v: { ...out.v, ...QUALITY_LIGHT } };
+  return out;
 }
 let view = effective(state);
 
@@ -124,6 +135,13 @@ export const settings = {
     if (next === era) return;
     era = next;
     writeLocal(ERA, era);
+    emit();
+  },
+  quality: () => quality,
+  setQuality(next: QualityId) {
+    if (next === quality) return;
+    quality = next;
+    writeLocal(QUALITY, quality);
     emit();
   },
   isRebuilding: () => pending,
@@ -186,6 +204,10 @@ export function useSettings() {
 
 export function useEra() {
   return useSyncExternalStore(settings.subscribe, settings.era);
+}
+
+export function useQuality() {
+  return useSyncExternalStore(settings.subscribe, settings.quality);
 }
 
 // only changes when a geometry parameter settles — components rebuild on this

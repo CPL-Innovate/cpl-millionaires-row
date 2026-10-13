@@ -7,8 +7,9 @@ import { BeatPins, PhotoGhost, PlateLabels } from './scene/Overlays';
 import { BEATS, BUILDINGS, STATIONS, type Station } from './data/site';
 import { PALETTES, type PaletteId } from './palettes';
 import { U, applyPalette } from './gl/uniforms';
-import { settings, useEra, useSettings } from './settings/store';
-import { ERAS } from './settings/schema';
+import { settings, useEra, useQuality, useSettings } from './settings/store';
+import { ERAS, QUALITIES } from './settings/schema';
+import { PerfProbe } from './ui/Perf';
 import { GeneratorPanel } from './ui/GeneratorPanel';
 import './App.css';
 
@@ -26,7 +27,7 @@ const LOOKS = [
 ] as const;
 type LookId = (typeof LOOKS)[number]['id'];
 
-// Deep links: ?station=everett&palette=sepia&evidence=0.6&look=wash&era=1888 (shareable views of a station)
+// Deep links: ?station=everett&palette=sepia&evidence=0.6&look=wash&era=1888&quality=light&fps (shareable views of a station)
 const params = new URLSearchParams(location.search);
 const initialPalette = (params.get('palette') as PaletteId) in PALETTES ? (params.get('palette') as PaletteId) : 'graphite';
 const initialEvidence = Math.min(1, Math.max(0, Number(params.get('evidence') ?? 0) || 0));
@@ -48,6 +49,8 @@ export default function App() {
   const [gen, setGen] = useState(params.has('gen')); // ?gen opens the Generator drawer
   const cfg = useSettings();
   const era = useEra();
+  const quality = useQuality();
+  const [fps, setFps] = useState(params.has('fps'));
   const over = cfg.colors[palette];
   const paper = over?.paper ?? PALETTES[palette].paper;
 
@@ -106,7 +109,7 @@ export default function App() {
 
   return (
     <div className={`app ${mode}`}>
-      <Canvas flat dpr={[1, 2]} camera={{ fov: 50, near: 0.3, far: 2000, position: [-40, 440, 120] }} gl={{ antialias: true, preserveDrawingBuffer: import.meta.env.DEV }}>
+      <Canvas flat dpr={QUALITIES.find((q) => q.id === quality)!.dpr} camera={{ fov: 50, near: 0.3, far: 2000, position: [-40, 440, 120] }} gl={{ antialias: true, preserveDrawingBuffer: import.meta.env.DEV }}>
         <color attach="background" args={[paper]} />
         <Suspense fallback={null}>
           <World />
@@ -117,6 +120,7 @@ export default function App() {
           {atStation && station.photo && <PhotoGhost station={station} opacity={photo} />}
         </Suspense>
         <CameraRig mode={mode} stationId={stationId} onArrive={onArrive} />
+        {fps && <PerfProbe />}
       </Canvas>
 
       <div className="grain" />
@@ -176,6 +180,20 @@ export default function App() {
           <p className="note">Colour is inferred everywhere: every photograph is black and white.</p>
         </section>
 
+        <section>
+          <h3>Performance</h3>
+          <div className="seg">
+            {QUALITIES.map((q) => (
+              <button key={q.id} className={quality === q.id ? 'on' : ''} onClick={() => settings.setQuality(q.id)}>
+                {q.label}
+              </button>
+            ))}
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={fps} onChange={(e) => setFps(e.target.checked)} /> Show frame rate
+          </label>
+        </section>
+
         {atStation && station.photo && (
           <section>
             <h3>Photograph</h3>
@@ -187,6 +205,8 @@ export default function App() {
           </section>
         )}
       </aside>
+
+      {fps && <div id="perf-hud" className="perf-hud" />}
 
       <nav className="stations">
         <button className={`mode ${mode === 'map' ? 'on' : ''}`} onClick={() => setMode('map')}>1881 plate</button>
