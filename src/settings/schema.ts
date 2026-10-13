@@ -116,3 +116,28 @@ export const COLOR_RAMPS = [
   { key: 'earth', label: 'Earth', names: ['Shadow', 'Terracotta', 'Brown', 'Peach', 'Sand', 'Cream'] },
 ] as const;
 export type RampKey = (typeof COLOR_RAMPS)[number]['key'];
+
+// Eras: "Painterly" is the base settings, tuned for the eye. "1888" is a layer on top, calibrated to
+// the archive: late October 1888, when nearly every photograph shows bare-branched elms (and canopy
+// would hide the façades), mown lawns, and no flower-coloured flecks no 1888 lawn ever had. Each era
+// keeps its own Generator tweaks; this is only 1888's starting point.
+export type EraId = 'painterly' | '1888';
+export const ERAS: { id: EraId; label: string; note: string }[] = [
+  { id: 'painterly', label: 'Painterly', note: 'The impression: autumn crowns, mounded lawns, bright accents.' },
+  { id: '1888', label: '1888', note: 'Calibrated to the photographs: near-bare elms, mown lawns, fallen leaves, October colour.' },
+];
+export const ERA_1888 = {
+  v: {
+    // elms nearly bare, every tree turned: what leaves remain are elm yellow, the odd maple rust
+    density: 0.1, densityVar: 0.08, autumnMin: 0.8, autumnMax: 1, turning: 1.1, accents: 0.35, crownDot: 0.8,
+    // mown lawns, a scatter of fallen leaves, no pink or lavender flecks
+    mound: 0.12, tuft: 0.03, lawnLight: -0.08, pink: 0, lavender: 0, litter: 0.24,
+    leaves: 90, sway: 0.6,
+  } as Record<string, number>,
+  // foliage ramp, shadow → light (lawn olive → elm yellow → cream), then the two accent slots
+  // become maple rust and oak brown
+  colors: {
+    graphite: { foliage: ['#8a9655', '#a2a95e', '#bbb869', '#d4c575', '#ead48a', '#f7ebc6', '#c66a48', '#a07f5e'] },
+    sepia: { foliage: ['#948748', '#ab9d52', '#c4b062', '#dbc277', '#ecd69c', '#f8ebcb', '#b86048', '#94714c'] },
+  } as Partial<Record<string, { foliage?: string[] }>>,
+};

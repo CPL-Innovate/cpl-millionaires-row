@@ -1,27 +1,37 @@
 import { useSyncExternalStore } from 'react';
 import type { PaletteId } from '../palettes';
-import { DEFAULTS, REBUILD_KEYS, type RampKey } from './schema';
+import { DEFAULTS, ERA_1888, REBUILD_KEYS, type EraId, type RampKey } from './schema';
 
 // Settings = numeric parameters + per-palette colour overrides. Precedence on load:
 // schema defaults < project defaults (public/settings.json) < this browser's autosave.
+// The base is the "Painterly" era; "1888" is a layer over it (ERA_1888, then the user's own 1888
+// tweaks in `eras`). Everything reads the effective view; edits go to whichever era is active.
 
 export interface PaletteOverride {
   paper?: string;
   foliage?: string[];
   earth?: string[];
 }
+type Colors = Partial<Record<PaletteId, PaletteOverride>>;
+export interface EraLayer {
+  v?: Record<string, number>;
+  colors?: Colors;
+}
 export interface Settings {
   v: Record<string, number>;
-  colors: Partial<Record<PaletteId, PaletteOverride>>;
+  colors: Colors;
+  eras?: Partial<Record<EraId, EraLayer>>;
 }
 
 const AUTOSAVE = 'mr-settings-v1';
 const PRESETS = 'mr-presets-v1';
+const ERA = 'mr-era-v1';
 
 const clone = (s: Settings): Settings => JSON.parse(JSON.stringify(s));
 const merge = (base: Settings, over?: Partial<Settings> | null): Settings => ({
   v: { ...base.v, ...(over?.v ?? {}) },
   colors: { ...base.colors, ...(over?.colors ?? {}) },
+  eras: { ...base.eras, ...(over?.eras ?? {}) },
 });
 
 function readLocal<T>(key: string): T | null {
@@ -40,10 +50,32 @@ function writeLocal(key: string, val: unknown) {
   }
 }
 
+// colour overrides merge per palette (an era's foliage ramp leaves the base paper colour alone)
+function mergeColors(...layers: (Colors | undefined)[]): Colors {
+  const out: Colors = {};
+  for (const l of layers) for (const [p, o] of Object.entries(l ?? {}) as [PaletteId, PaletteOverride][]) out[p] = { ...out[p], ...o };
+  return out;
+}
+
+const urlEra = new URLSearchParams(location.search).get('era');
+let era: EraId = urlEra === '1888' || urlEra === 'painterly' ? urlEra : (readLocal<EraId>(ERA) ?? 'painterly');
+
 let project: Settings = { v: { ...DEFAULTS }, colors: {} };
 let state: Settings = merge(project, readLocal<Settings>(AUTOSAVE));
+
+function effective(s: Settings): Settings {
+  if (era === 'painterly') return s;
+  const mine = s.eras?.[era] ?? {};
+  return {
+    v: { ...s.v, ...ERA_1888.v, ...(mine.v ?? {}) },
+    colors: mergeColors(s.colors, ERA_1888.colors as Colors, mine.colors),
+    eras: s.eras,
+  };
+}
+let view = effective(state);
+
 const rebuildOf = (s: Settings) => Object.fromEntries(REBUILD_KEYS.map((k) => [k, s.v[k]]));
-let rebuild: Record<string, number> = rebuildOf(state);
+let rebuild: Record<string, number> = rebuildOf(view);
 let pending = false;
 
 const listeners = new Set<() => void>();
@@ -52,9 +84,10 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 
 function emit() {
   writeLocal(AUTOSAVE, state);
+  view = effective(state);
   listeners.forEach((l) => l());
   // geometry rebuilds wait until the slider settles
-  const next = rebuildOf(state);
+  const next = rebuildOf(view);
   if (JSON.stringify(next) !== JSON.stringify(rebuild)) {
     pending = true;
     clearTimeout(timer);
@@ -67,24 +100,43 @@ function emit() {
   }
 }
 
+// write into the active era: the base for Painterly, the era's own layer otherwise
+function edit(fn: (layer: { v: Record<string, number>; colors: Colors }) => void) {
+  if (era === 'painterly') {
+    const next = { ...state, v: { ...state.v }, colors: { ...state.colors } };
+    fn(next);
+    state = next;
+  } else {
+    const cur = state.eras?.[era] ?? {};
+    const layer = { v: { ...(cur.v ?? {}) }, colors: { ...(cur.colors ?? {}) } };
+    fn(layer);
+    state = { ...state, eras: { ...state.eras, [era]: layer } };
+  }
+  emit();
+}
+
 export const settings = {
-  get: () => state,
+  get: () => view,
+  // what gets saved, exported and stored as presets: the base plus every era's own layer
+  raw: () => state,
+  era: () => era,
+  setEra(next: EraId) {
+    if (next === era) return;
+    era = next;
+    writeLocal(ERA, era);
+    emit();
+  },
   isRebuilding: () => pending,
   set(key: string, value: number) {
-    state = { ...state, v: { ...state.v, [key]: value } };
-    emit();
+    edit((l) => { l.v[key] = value; });
   },
   setColor(palette: PaletteId, ramp: RampKey, i: number, hex: string, base: string[]) {
-    const cur = state.colors[palette] ?? {};
-    const arr = [...(cur[ramp] ?? base)];
+    const arr = [...(view.colors[palette]?.[ramp] ?? base)];
     arr[i] = hex;
-    state = { ...state, colors: { ...state.colors, [palette]: { ...cur, [ramp]: arr } } };
-    emit();
+    edit((l) => { l.colors[palette] = { ...l.colors[palette], [ramp]: arr }; });
   },
   setPaper(palette: PaletteId, hex: string) {
-    const cur = state.colors[palette] ?? {};
-    state = { ...state, colors: { ...state.colors, [palette]: { ...cur, paper: hex } } };
-    emit();
+    edit((l) => { l.colors[palette] = { ...l.colors[palette], paper: hex }; });
   },
   replace(next: Partial<Settings>) {
     state = merge({ v: { ...DEFAULTS }, colors: {} }, next);
@@ -130,6 +182,10 @@ export const settings = {
 
 export function useSettings() {
   return useSyncExternalStore(settings.subscribe, settings.get);
+}
+
+export function useEra() {
+  return useSyncExternalStore(settings.subscribe, settings.era);
 }
 
 // only changes when a geometry parameter settles — components rebuild on this

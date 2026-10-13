@@ -7,7 +7,8 @@ import { BeatPins, PhotoGhost, PlateLabels } from './scene/Overlays';
 import { BEATS, BUILDINGS, STATIONS, type Station } from './data/site';
 import { PALETTES, type PaletteId } from './palettes';
 import { U, applyPalette } from './gl/uniforms';
-import { settings, useSettings } from './settings/store';
+import { settings, useEra, useSettings } from './settings/store';
+import { ERAS } from './settings/schema';
 import { GeneratorPanel } from './ui/GeneratorPanel';
 import './App.css';
 
@@ -17,10 +18,21 @@ const LEGEND = [
   { k: 'invented', label: 'Invented', hint: 'Construction line — present because the space needs a wall' },
 ];
 
-// Deep links: ?station=everett&palette=sepia&evidence=0.6 (shareable views of a station)
+// Everett's three looks; only the Everett mesh carries a texture so far
+const LOOKS = [
+  { id: 'pencil', label: 'Pencil', lines: 1, note: 'Drawn from the evidence: the hatching shows what each face rests on.' },
+  { id: 'wash', label: 'Watercolour', lines: 0.45, note: 'The model’s texture as a wash: its detail in the palette’s colours, pencil kept in the shadows.' },
+  { id: 'texture', label: 'Texture', lines: 0, note: 'The texture as Tripo generated it. Its colour and detail are AI-inferred, even on photographed faces.' },
+] as const;
+type LookId = (typeof LOOKS)[number]['id'];
+
+// Deep links: ?station=everett&palette=sepia&evidence=0.6&look=wash&era=1888 (shareable views of a station)
 const params = new URLSearchParams(location.search);
 const initialPalette = (params.get('palette') as PaletteId) in PALETTES ? (params.get('palette') as PaletteId) : 'graphite';
 const initialEvidence = Math.min(1, Math.max(0, Number(params.get('evidence') ?? 0) || 0));
+const initialLook = Math.max(0, LOOKS.findIndex((l) => l.id === params.get('look')));
+U.uLookFrom.value = U.uLookTo.value = initialLook;
+U.uLookLines.value = LOOKS[initialLook].lines;
 const initialStation = STATIONS.some((s) => s.id === params.get('station')) ? params.get('station')! : null;
 settings.loadProject();
 
@@ -28,12 +40,14 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('map');
   const [palette, setPalette] = useState<PaletteId>(initialPalette);
   const [evidence, setEvidence] = useState(initialEvidence);
+  const [look, setLook] = useState<LookId>(LOOKS[initialLook].id);
   const [stationId, setStationId] = useState('corner');
   const [arrived, setArrived] = useState<string | null>(null);
   const [photo, setPhoto] = useState(0);
   const [beat, setBeat] = useState<string | null>(null);
   const [gen, setGen] = useState(params.has('gen')); // ?gen opens the Generator drawer
   const cfg = useSettings();
+  const era = useEra();
   const over = cfg.colors[palette];
   const paper = over?.paper ?? PALETTES[palette].paper;
 
@@ -52,6 +66,16 @@ export default function App() {
   useEffect(() => {
     gsap.to(U.uEvidence, { value: evidence, duration: 0.6, ease: 'power2.out' });
   }, [evidence]);
+
+  // the new look blotches in over the old one, like the street drawing itself
+  useEffect(() => {
+    const i = LOOKS.findIndex((l) => l.id === look);
+    if (U.uLookTo.value === i) return;
+    U.uLookFrom.value = U.uLookTo.value;
+    U.uLookTo.value = i;
+    gsap.fromTo(U.uLookT, { value: 0 }, { value: 1, duration: 1.4, ease: 'power1.inOut' });
+    gsap.to(U.uLookLines, { value: LOOKS[i].lines, duration: 1.4, ease: 'power1.inOut' });
+  }, [look]);
 
   useEffect(() => {
     if (!initialStation) return;
@@ -114,7 +138,27 @@ export default function App() {
             ))}
           </div>
           <p className="note">{PALETTES[palette].note}</p>
+          <div className="seg era">
+            {ERAS.map((e) => (
+              <button key={e.id} className={era === e.id ? 'on' : ''} onClick={() => settings.setEra(e.id)}>
+                {e.label}
+              </button>
+            ))}
+          </div>
+          <p className="note">{ERAS.find((e) => e.id === era)!.note}</p>
           <button className={`gen-toggle ${gen ? 'on' : ''}`} onClick={() => setGen(!gen)}>Tune the generator</button>
+        </section>
+
+        <section>
+          <h3>Everett house</h3>
+          <div className="seg">
+            {LOOKS.map((l) => (
+              <button key={l.id} className={look === l.id ? 'on' : ''} onClick={() => setLook(l.id)}>
+                {l.label}
+              </button>
+            ))}
+          </div>
+          <p className="note">{LOOKS.find((l) => l.id === look)!.note}</p>
         </section>
 
         <section>

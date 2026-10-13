@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { PALETTES, type PaletteId } from '../palettes';
-import { COLOR_RAMPS, GROUPS, type ParamDef } from '../settings/schema';
-import { settings, useSettings, type Settings } from '../settings/store';
+import { COLOR_RAMPS, ERAS, GROUPS, type ParamDef } from '../settings/schema';
+import { settings, useEra, useSettings, type Settings } from '../settings/store';
 
 const fmt = (p: ParamDef, v: number) => (p.step >= 1 ? Math.round(v).toLocaleString() : v.toFixed(p.step < 0.01 ? 3 : 2));
 
@@ -20,6 +20,7 @@ function Row({ p, value }: { p: ParamDef; value: number }) {
 
 export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClose: () => void }) {
   const s = useSettings();
+  const era = useEra();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preset, setPreset] = useState('');
   const [msg, setMsg] = useState('');
@@ -33,7 +34,7 @@ export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClo
   };
 
   const exportJson = () => {
-    const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(settings.raw(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'millionaires-row-settings.json';
@@ -52,7 +53,7 @@ export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClo
 
   const saveProject = async () => {
     try {
-      const res = await fetch('/__settings', { method: 'POST', body: JSON.stringify(s, null, 2) });
+      const res = await fetch('/__settings', { method: 'POST', body: JSON.stringify(settings.raw(), null, 2) });
       flash(res.ok ? 'Saved to public/settings.json' : 'Save failed');
     } catch {
       flash('Save failed');
@@ -62,7 +63,7 @@ export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClo
   return (
     <aside className="gen">
       <header className="gen-head">
-        <h3>Generator</h3>
+        <h3>Generator · {ERAS.find((e) => e.id === era)!.label}</h3>
         <span className="gen-status">{settings.isRebuilding() ? 'Regrowing…' : msg}</span>
         <button className="x" onClick={onClose} aria-label="Close">×</button>
       </header>
@@ -131,7 +132,7 @@ export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClo
           {import.meta.env.DEV && <button className="gen-primary" onClick={saveProject}>Save as project default</button>}
         </div>
         <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} />
-        <p className="note">Changes autosave in this browser. ↻ marks settings that regrow the scene.</p>
+        <p className="note">Changes autosave in this browser and apply to the {ERAS.find((e) => e.id === era)!.label} look only. ↻ marks settings that regrow the scene.</p>
       </footer>
     </aside>
   );

@@ -52,15 +52,26 @@ float paperGrain(vec2 fragCoord) {
 // 1 inferred, 2 invented) or, for the Everett mesh, derived per fragment from object-space
 // normals (front + west photographed, roof inferred, north + east invented).
 // ---------------------------------------------------------------------------------------------
-export function makeSurfaceMaterial(opts: { state?: number; everett?: boolean; map?: THREE.Texture | null }) {
+// With `looks` (the Everett mesh), the same surface can also render as a watercolour wash over
+// the model's texture or as the texture itself, lit; uLookFrom → uLookTo blotches across as
+// uLookT runs 0 → 1, with the same noise family as the street reveal.
+export function makeSurfaceMaterial(opts: {
+  state?: number;
+  everett?: boolean;
+  map?: THREE.Texture | null;
+  looks?: { map: THREE.Texture; normalMap: THREE.Texture };
+}) {
   return new THREE.ShaderMaterial({
     transparent: true,
     side: THREE.DoubleSide,
-    defines: { EVERETT: opts.everett ? 1 : 0, USE_PHOTOMAP: opts.map ? 1 : 0 },
+    defines: { EVERETT: opts.everett ? 1 : 0, USE_PHOTOMAP: opts.map ? 1 : 0, LOOKS: opts.looks ? 1 : 0 },
     uniforms: {
       ...U,
       uState: { value: opts.state ?? 1 },
       uMap: { value: opts.map ?? null },
+      uLookMap: { value: opts.looks?.map ?? null },
+      uNormalMap: { value: opts.looks?.normalMap ?? null },
+      uNormalScale: { value: new THREE.Vector2(1, 1) },
     },
     vertexShader: /* glsl */ `
       varying vec3 vWorld;
@@ -92,6 +103,79 @@ export function makeSurfaceMaterial(opts: { state?: number; everett?: boolean; m
       varying vec3 vPosO;
       varying float vDepth;
       varying vec2 vUv;
+
+      #if LOOKS
+      uniform sampler2D uLookMap;
+      uniform sampler2D uNormalMap;
+      uniform vec2 uNormalScale;
+      uniform vec3 uFoliage[8];
+      uniform vec3 uEarth[6];
+      uniform float uLookFrom, uLookTo, uLookT;
+      const vec3 LUMA = vec3(0.299, 0.587, 0.114);
+
+      vec3 rampE(float t) { t = clamp(t, 0.0, 4.999); int i = int(floor(t)); return mix(uEarth[i], uEarth[i + 1], fract(t)); }
+
+      // tangent-free normal mapping from screen-space derivatives (the Tripo atlas has thousands
+      // of small UV islands, so per-pixel frames are safer than baked tangents anyway)
+      vec3 perturb(vec3 N, float strength) {
+        vec3 q0 = dFdx(vWorld), q1 = dFdy(vWorld);
+        vec2 st0 = dFdx(vUv), st1 = dFdy(vUv);
+        vec3 q1perp = cross(q1, N), q0perp = cross(N, q0);
+        vec3 T = q1perp * st0.x + q0perp * st1.x;
+        vec3 B = q1perp * st0.y + q0perp * st1.y;
+        float det = max(dot(T, T), dot(B, B));
+        float sc = det == 0.0 ? 0.0 : inversesqrt(det);
+        vec3 m = texture2D(uNormalMap, vUv).xyz * 2.0 - 1.0;
+        m.xy *= uNormalScale * strength;
+        return normalize(T * (m.x * sc) + B * (m.y * sc) + N * m.z);
+      }
+
+      // the texture as it came from the model, under the scene's soft south-west light
+      vec3 textureLook(vec3 n) {
+        vec3 alb = texture2D(uLookMap, vUv).rgb;
+        vec3 nn = perturb(n, 1.0);
+        float sun = clamp(dot(nn, uLightDir), 0.0, 1.0);
+        vec3 amb = mix(uEarth[2], uPaper, 0.5 + 0.5 * nn.y);   // warm bounce below, paper sky above
+        vec3 c = alb * (amb * 0.7 + vec3(1.0, 0.95, 0.86) * sun * 0.7);
+        c *= 1.0 - clamp(1.0 - vWorld.y / 2.5, 0.0, 1.0) * 0.3; // contact shadow at the foot of the walls
+        return c;
+      }
+
+      // a watercolour of the texture: its values and detail, the palette's earths, washes laid in
+      // three passes with wobbling wet edges, the paper left white where the light hits hardest
+      vec3 washLook(vec3 n) {
+        vec3 alb = texture2D(uLookMap, vUv, 0.75).rgb;
+        float al = dot(alb, LUMA);
+        // the texture's own colour, nudged toward the palette's earths and kept clean (no mud)
+        vec3 pig = mix(alb, rampE(1.0 + al * 5.0) * (0.6 + al), 0.22);
+        pig = max(mix(vec3(dot(pig, LUMA)), pig, 1.3), 0.0);
+
+        vec3 nn = perturb(n, 0.45);
+        vec2 wq = vec2(vWorld.x + vWorld.z, vWorld.y);
+        float wob = noise2(wq * 0.045) - 0.5;
+        float s = clamp(dot(nn, uLightDir), 0.0, 1.0) * 0.75 + 0.25 * (0.5 + 0.5 * nn.y) + wob * 0.3;
+        float lit = smoothstep(0.56, 0.6, s);
+        float mid = smoothstep(0.3, 0.34, s);
+        float D = 0.6 + 0.2 * (1.0 - mid) + 0.14 * (1.0 - lit);
+        // wet edges: pigment pools where one wash stops
+        D += (1.0 - smoothstep(0.0, 0.035, abs(s - 0.32))) * 0.12 + (1.0 - smoothstep(0.0, 0.035, abs(s - 0.58))) * 0.08;
+        // granulation and uneven pigment load
+        D *= 0.82 + 0.3 * noise2(wq * 0.31 + 0.17) + 0.1 * paperGrain(gl_FragCoord.xy);
+        // reserved whites: bare paper on the brightest sunlit patches
+        float reserve = lit * step(0.62, noise2(wq * 0.09 + 0.5) + (s - 0.6) * 0.8);
+        D *= 1.0 - reserve * 0.85;
+        // lost edges: the walls bleed out into the lawn
+        D *= smoothstep(0.0, 1.0, (vWorld.y - 0.2) / (1.6 + wob * 2.0));
+
+        vec3 shade = mix(pig, uFoliage[7] * 0.8, 0.3 * (1.0 - mid));     // violet in the shadows
+        shade = mix(shade, shade * vec3(1.06, 1.0, 0.9), lit);            // warm where the sun lands
+        vec3 c = mix(uPaper, shade, clamp(D, 0.0, 1.0));
+        // keep the pencil in the shadows only
+        float h = hatch(vWorld, vec3(900.0, 1400.0, 300.0), 4.6, (1.0 - mid) * 0.32, 0.6);
+        c = mix(c, uPencil, h * 0.28 * (1.0 - smoothstep(70.0, 180.0, vDepth)));
+        return c;
+      }
+      #endif
 
       void main() {
         if (reveal(vWorld.xz) < 0.5) discard;
@@ -149,6 +233,33 @@ export function makeSurfaceMaterial(opts: { state?: number; everett?: boolean; m
         col = mix(col, uPaper, fog);
 
         float alpha = mix(1.0, 0.07, uEvidence * invented);
+
+        #if LOOKS
+        {
+          vec3 pencilCol = col;
+          vec3 cols[3];
+          cols[0] = pencilCol;
+          cols[1] = washLook(n);
+          cols[2] = textureLook(n);
+          for (int i = 1; i < 3; i++) {
+            // colour is inferred everywhere (every source is B&W): evidence mode drains it, and
+            // invented faces fall back toward construction lines
+            vec3 c = cols[i];
+            c = mix(c, vec3(dot(c, LUMA)), uEvidence * 0.85);
+            c = mix(c, mix(uPaper, uFaint, 0.25), invented * uEvidence * 0.6);
+            c *= 0.97 + paperGrain(gl_FragCoord.xy) * 0.05;
+            cols[i] = mix(c, uPaper, fog);
+          }
+          vec3 from = cols[int(uLookFrom + 0.5)];
+          vec3 to = cols[int(uLookTo + 0.5)];
+          vec2 bq = vec2(vWorld.x + vWorld.z, vWorld.y);
+          float k = noise2(bq * 0.03) * 0.8 + hash2(floor(bq * 0.6)) * 0.2;
+          float t = uLookT * 1.1;
+          col = mix(from, to, step(k, t));
+          col = mix(col, uPencil, (1.0 - smoothstep(0.0, 0.025, abs(k - t))) * step(0.001, uLookT) * step(uLookT, 0.999) * 0.5);
+        }
+        #endif
+
         gl_FragColor = vec4(col, alpha);
         #include <colorspace_fragment>
       }
@@ -191,6 +302,7 @@ export function makeLineMaterial(opts: { state?: number; everett?: boolean; weig
       ${COMMON}
       uniform float uState;
       uniform float uWeight;
+      uniform float uLookLines;
       varying vec3 vWorld;
       varying vec3 vPosO;
       varying float vDepth;
@@ -216,6 +328,9 @@ export function makeLineMaterial(opts: { state?: number; everett?: boolean; weig
           a *= mix(1.0, dash * 0.75, uEvidence);
         }
         a *= 1.0 - smoothstep(120.0, 380.0, vDepth);
+        #if EVERETT
+          a *= uLookLines;
+        #endif
         gl_FragColor = vec4(col, a);
         #include <colorspace_fragment>
       }

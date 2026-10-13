@@ -75,10 +75,14 @@ function Massing({ b }: { b: Building }) {
   );
 }
 
+// Everett renders in three looks (pencil, watercolour, texture) from one material; the 2k colour
+// and normal maps come from the un-decimated Tripo export (scripts/everett-maps.mjs).
 function Everett({ b }: { b: Building }) {
   const gltf = useGLTF('/models/everett.glb');
+  const [lookMap, normalMap] = useLoader(THREE.TextureLoader, ['/models/everett-basecolor.jpg', '/models/everett-normal.jpg']);
   const [x, z] = plateToWorld(b.plate[0], b.plate[1]);
-  const { geo, map, edges, surf, line } = useMemo(() => {
+  const s = b.size[0] / 0.979; // model is normalised to ~0.98 wide
+  const { geo, edges, surf, line, contact } = useMemo(() => {
     let mesh: THREE.Mesh | null = null;
     gltf.scene.traverse((o) => {
       if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
@@ -98,22 +102,56 @@ function Everett({ b }: { b: Building }) {
     geo.computeBoundingBox();
     const map = ((m.material as THREE.MeshStandardMaterial).map ?? null) as THREE.Texture | null;
     if (map) map.colorSpace = THREE.SRGBColorSpace;
+    // glTF UVs: no flip
+    lookMap.flipY = normalMap.flipY = false;
+    lookMap.colorSpace = THREE.SRGBColorSpace;
+    lookMap.anisotropy = normalMap.anisotropy = 8;
+    lookMap.needsUpdate = normalMap.needsUpdate = true;
     return {
       geo,
-      map,
       edges: edgesOf(geo, 38),
-      surf: makeSurfaceMaterial({ everett: true, map }),
+      surf: makeSurfaceMaterial({ everett: true, map, looks: { map: lookMap, normalMap } }),
       line: makeLineMaterial({ everett: true, weight: 0.55 }),
+      contact: contactDots(geo, x, z, s),
     };
-  }, [gltf]);
-  void map;
-  const s = b.size[0] / 0.979; // model is normalised to ~0.98 wide
+  }, [gltf, lookMap, normalMap, x, z, s]);
+  useEffect(() => () => contact.dispose(), [contact]);
+  const contactMat = useMemo(() => makeDabMaterial({ sway: 0.15, solid: true, role: 'shrub' }), []);
   return (
-    <group position={[x, 0, z]} scale={s}>
-      <mesh geometry={geo} material={surf} renderOrder={1} />
-      <lineSegments geometry={edges} material={line} renderOrder={2} />
-    </group>
+    <>
+      <group position={[x, 0, z]} scale={s}>
+        <mesh geometry={geo} material={surf} renderOrder={1} />
+        <lineSegments geometry={edges} material={line} renderOrder={2} />
+      </group>
+      <points geometry={contact} material={contactMat} renderOrder={2} />
+    </>
   );
+}
+
+// where the walls meet the ground: soil, grass and low planting in dots all the way round the
+// footprint, so the house sits in the painting instead of floating over it
+function contactDots(geo: THREE.BufferGeometry, x: number, z: number, s: number) {
+  const r = rand(4111);
+  const p = geo.getAttribute('position');
+  const base: [number, number][] = [];
+  for (let i = 0; i < p.count; i++) if (p.getY(i) * s < 0.35) base.push([p.getX(i) * s, p.getZ(i) * s]);
+  let cx = 0, cz = 0;
+  for (const [bx, bz] of base) { cx += bx; cz += bz; }
+  cx /= base.length || 1; cz /= base.length || 1;
+  const out: number[] = [];
+  const n = Math.min(9000, base.length * 6);
+  for (let i = 0; i < n && base.length; i++) {
+    const [bx, bz] = base[Math.floor(r() * base.length)];
+    const dx = bx - cx, dz = bz - cz, len = Math.hypot(dx, dz) || 1;
+    const out1 = Math.pow(r(), 1.6) * 1.4; // crowd against the wall, thin out onto the lawn
+    const px = bx + (dx / len) * out1 + (r() - 0.5) * 0.5, pz = bz + (dz / len) * out1 + (r() - 0.5) * 0.5;
+    const h = r() * 0.55 * (1 - out1 / 1.6);
+    const roll = r();
+    // soil and shadow tight to the wall, grass and the odd shrub tuft beyond
+    const tint = out1 < 0.35 && roll < 0.6 ? 10 + r() * 1.4 : roll < 0.04 ? 6 + Math.floor(r() * 2) : clamp01(0.1 + h * 0.9 + (r() - 0.5) * 0.4) * 3.5;
+    out.push(x + px, h + 0.05, z + pz, 0.1 + r() * 0.22, tint, r());
+  }
+  return dabGeo(out);
 }
 
 // ---------------------------------------------------------------------------------------------

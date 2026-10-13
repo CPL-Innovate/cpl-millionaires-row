@@ -63,6 +63,11 @@ export const U = {
   uEarth: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Color()) },
   uPxScale: { value: 800 }, // pixels per metre at 1 m depth (set each frame)
   uLightDir: { value: new THREE.Vector3(-0.45, 0.75, 0.5).normalize() },
+  // Everett look (0 pencil, 1 watercolour, 2 texture): from → to as uLookT runs 0 → 1
+  uLookFrom: { value: 0 },
+  uLookTo: { value: 0 },
+  uLookT: { value: 1 },
+  uLookLines: { value: 1 }, // pencil edge lines on the Everett mesh, per look
 };
 
 // live generator parameters: one shared uniform per key, named uG_<key>
