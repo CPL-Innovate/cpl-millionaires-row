@@ -22,7 +22,9 @@ class SoundEngine {
   private master!: GainNode;
   private bedBus!: GainNode; // ducked at St. Paul's
   private musicBus!: GainNode; // silent at St. Paul's
-  private musicOn = true;
+  private fx!: GainNode; // visitor's Sound volume: ambience, effects, interface
+  private musicVol!: GainNode; // visitor's Music volume
+  private volume = { sound: 1, music: 1 };
   private buffers = new Map<string, Promise<AudioBuffer>>();
   private beds = new Map<string, GainNode>();
   private windmill: PannerNode | null = null;
@@ -67,11 +69,17 @@ class SoundEngine {
     this.master = ctx.createGain();
     this.master.gain.value = 0;
     this.master.connect(comp).connect(ctx.destination);
+    this.fx = ctx.createGain();
+    this.fx.gain.value = this.volume.sound ** 2;
+    this.fx.connect(this.master);
     this.bedBus = ctx.createGain();
-    this.bedBus.connect(this.master);
+    this.bedBus.connect(this.fx);
+    this.musicVol = ctx.createGain();
+    this.musicVol.gain.value = this.volume.music ** 2;
+    this.musicVol.connect(this.master);
     this.musicBus = ctx.createGain();
     this.musicBus.gain.value = 0;
-    this.musicBus.connect(this.master);
+    this.musicBus.connect(this.musicVol);
   }
 
   private load(name: string) {
@@ -177,12 +185,15 @@ class SoundEngine {
   }
 
   private mixMusic() {
-    if (this.ctx) this.fade(this.musicBus, this.on && this.musicOn && !this.ducked ? 0.22 : 0, this.ducked ? 2 : 3);
+    if (this.ctx) this.fade(this.musicBus, this.on && !this.ducked ? 0.22 : 0, this.ducked ? 2 : 3);
   }
 
-  setMusic(on: boolean) {
-    this.musicOn = on;
-    this.mixMusic();
+  // the visitor's volume sliders, 0–1; squared so the slider feels even to the ear
+  setVolume(kind: 'sound' | 'music', v: number) {
+    this.volume[kind] = v;
+    const node = kind === 'sound' ? this.fx : this.musicVol;
+    if (!node || !this.ctx) return;
+    node.gain.setTargetAtTime(v * v, this.ctx.currentTime, 0.05);
   }
 
   private mixBeds() {
@@ -202,7 +213,7 @@ class SoundEngine {
     p.distanceModel = 'inverse';
     p.refDistance = ref;
     p.rolloffFactor = rolloff;
-    p.connect(this.master);
+    p.connect(this.fx);
     return p;
   }
 
@@ -230,7 +241,7 @@ class SoundEngine {
       p = this.panner(opts.ref ?? 6, 1);
       p.positionX.value = opts.at[0]; p.positionY.value = opts.at[1]; p.positionZ.value = opts.at[2];
       g.connect(p);
-    } else g.connect(this.master);
+    } else g.connect(this.fx);
     const when = ctx.currentTime + (opts.delay ?? 0);
     if (opts.dur) {
       // a slice: short fades so it doesn't click

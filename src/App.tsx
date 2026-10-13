@@ -41,8 +41,10 @@ settings.loadProject();
 
 const SOUND = 'mr-sound-v1';
 const readSound = () => { try { return localStorage.getItem(SOUND) === 'on'; } catch { return false; } };
-const MUSIC = 'mr-music-v1';
-const readMusic = () => { try { return localStorage.getItem(MUSIC) !== 'off'; } catch { return true; } };
+const VOLUME = 'mr-volume-v1';
+const readVolume = (): { sound: number; music: number } => {
+  try { return { sound: 0.8, music: 0.8, ...JSON.parse(localStorage.getItem(VOLUME) ?? '{}') }; } catch { return { sound: 0.8, music: 0.8 }; }
+};
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('map');
@@ -59,7 +61,7 @@ export default function App() {
   const quality = useQuality();
   const [fps, setFps] = useState(params.has('fps'));
   const [soundOn, setSoundOn] = useState(readSound);
-  const [musicOn, setMusicOn] = useState(readMusic);
+  const [volume, setVolume] = useState(readVolume);
   const prevMode = useRef<Mode>('map');
   const lastErase = useRef(0);
   const over = cfg.colors[palette];
@@ -117,9 +119,10 @@ export default function App() {
   }, []);
   useEffect(() => sound.setEra(era), [era]);
   useEffect(() => {
-    sound.setMusic(musicOn);
-    try { localStorage.setItem(MUSIC, musicOn ? 'on' : 'off'); } catch { /* session only */ }
-  }, [musicOn]);
+    sound.setVolume('sound', volume.sound);
+    sound.setVolume('music', volume.music);
+    try { localStorage.setItem(VOLUME, JSON.stringify(volume)); } catch { /* session only */ }
+  }, [volume]);
   useEffect(() => {
     sound.setMode(mode);
     if (mode !== prevMode.current) {
@@ -248,9 +251,19 @@ export default function App() {
             <button className={!soundOn ? 'on' : ''} onClick={() => toggleSound(false)}>Off</button>
             <button className={soundOn ? 'on' : ''} onClick={() => toggleSound(true)}>On</button>
           </div>
-          <label className="check">
-            <input type="checkbox" checked={musicOn} disabled={!soundOn} onChange={(e) => setMusicOn(e.target.checked)} /> Music
-          </label>
+          <div className={`volumes ${soundOn ? '' : 'off'}`}>
+            {(['sound', 'music'] as const).map((k) => (
+              <label key={k} className="vol">
+                <span>{k === 'sound' ? 'Sound' : 'Music'}</span>
+                <input
+                  type="range" min={0} max={1} step={0.01} value={volume[k]}
+                  aria-label={`${k === 'sound' ? 'Sound' : 'Music'} volume`}
+                  onChange={(e) => setVolume((v) => ({ ...v, [k]: +e.target.value }))}
+                />
+                <span className="pct">{Math.round(volume[k] * 100)}%</span>
+              </label>
+            ))}
+          </div>
           <p className="note">Generated from period descriptions, so it is an impression, like the paint. Walk to hear the ground you’re on.</p>
         </section>
 

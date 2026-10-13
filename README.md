@@ -68,7 +68,8 @@ npm run build    # type-check + production build into dist/
   - Settings autosave in the browser. You can save named presets and export or import JSON.
   - In dev, **Save as project default** writes `public/settings.json`, which every build loads as
     its starting look.
-- **Sound** (off until turned on; browsers need a click first):
+- **Sound** (off until turned on; browsers need a click first). **Sound** and **Music** volume
+  sliders sit under the switch (80% to start, remembered per browser; Music at 0 turns it off):
   - Background loops for the street, a distant 1880s city and the wind. 1888 gets wind in bare
     elms, Painterly a leafy rustle. Map mode is a hushed reading room.
   - In the scene: Brush's windmill and the nearest gas lamp get louder as you approach.
@@ -78,7 +79,7 @@ npm run build    # type-check + production build into dist/
     falls quiet and a single bell answers from far across the city.
   - Interface sounds: pencil and paper as the street draws itself, a shimmer as the dots gather,
     the photo developing, and a card tap on buttons.
-  - **Music** (on by default once sound is on): an original slow salon waltz for each era,
+  - **Music**: an original slow salon waltz for each era,
     generated with the ElevenLabs Music API. Painterly gets warm piano over a soft string pad, and
     1888 a sparse, hushed upright. It plays quietly under everything, rests a few seconds between
     repeats, crossfades when the era changes, and falls silent at St. Paul's.
