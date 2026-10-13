@@ -76,7 +76,7 @@ function Massing({ b }: { b: Building }) {
 }
 
 // An image-to-3D house (Tripo spike), slimmed by scripts/slim-model.mjs. A house with `looks` maps
-// (Everett, from scripts/everett-maps.mjs) also renders as watercolour or texture.
+// (Everett, from scripts/house-maps.mjs) also renders as watercolour or texture.
 function MeshHouse({ b }: { b: Building }) {
   const model = b.model!;
   const gltf = useGLTF(model.url);
@@ -139,7 +139,7 @@ function LooksSurface({ geo, map, model }: SurfaceProps) {
     lookMap.colorSpace = THREE.SRGBColorSpace;
     lookMap.anisotropy = normalMap.anisotropy = 8;
     lookMap.needsUpdate = normalMap.needsUpdate = true;
-    return makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, looks: { map: lookMap, normalMap } });
+    return makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, looks: { map: lookMap, normalMap, neutral: model.neutralWalls } });
   }, [geo, map, model, lookMap, normalMap]);
   return <mesh geometry={geo} material={surf} renderOrder={1} />;
 }

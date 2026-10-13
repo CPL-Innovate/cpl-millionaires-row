@@ -55,7 +55,7 @@ npm run build    # type-check + production build into dist/
   of that autumn shows bare-branched elms, so the crowns are near-bare and turned, the lawns mown
   and leaf-strewn, with no pink or lavender flecks. 1888 is a layer over Painterly
   (`ERA_1888` in `settings/schema.ts`), and the Generator edits whichever one is showing.
-- **Everett house looks** (experimental, Everett only for now):
+- **Modelled house looks** (Everett, Stager-Beckwith, Rockefeller and Wade Sr.; massing blocks stay pencil):
   - **Pencil:** the drawing described above.
   - **Watercolour:** the model's texture, painted. It keeps the texture's detail and values, pulls
     the colour toward the palette's earths, lays washes with wet edges, leaves paper white where
@@ -117,7 +117,7 @@ scripts/
   compose_plate.py      Georeferences Plates 3 + 5 into public/plates/euclid-case-1881.jpg
   strip-everett.mjs     Slims the Everett spike mesh (drops unused PBR maps)
   slim-model.mjs        Slims a raw Tripo export: base colour only, ~85k triangles, 1K map, meshopt
-  everett-maps.mjs      Extracts 2k colour + normal maps for the Watercolour and Texture looks
+  house-maps.mjs      Extracts 2k colour + normal maps for the Watercolour and Texture looks
 public/
   plates/  img/  models/
 ```
@@ -209,6 +209,7 @@ In priority order, from the last review:
 
 - `?raf=timeout` keeps animation ticking in a hidden or background preview pane.
 - `?shots=1` speeds up transitions for headless screenshots.
+- `?nophoto` stops a station's CPL photograph fading in on arrival.
 - `SNAP_DIR=… npm run dev` enables `POST /__snap?name=x`, which writes the canvas to `x.png`.
 - `POST /__settings` is used by the Generator's **Save as project default**.
 

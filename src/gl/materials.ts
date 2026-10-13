@@ -83,7 +83,7 @@ export function makeSurfaceMaterial(opts: {
   state?: number;
   mesh?: { provenance: MeshProvenance; box: THREE.Box3 };
   map?: THREE.Texture | null;
-  looks?: { map: THREE.Texture; normalMap: THREE.Texture };
+  looks?: { map: THREE.Texture; normalMap: THREE.Texture; neutral?: boolean };
 }) {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -97,6 +97,7 @@ export function makeSurfaceMaterial(opts: {
       uLookMap: { value: opts.looks?.map ?? null },
       uNormalMap: { value: opts.looks?.normalMap ?? null },
       uNormalScale: { value: new THREE.Vector2(1, 1) },
+      uNeutral: { value: opts.looks?.neutral ? 1 : 0 },
     },
     vertexShader: /* glsl */ `
       varying vec3 vWorld;
@@ -136,6 +137,7 @@ export function makeSurfaceMaterial(opts: {
       uniform sampler2D uLookMap;
       uniform sampler2D uNormalMap;
       uniform vec2 uNormalScale;
+      uniform float uNeutral;
       uniform vec3 uFoliage[8];
       uniform vec3 uEarth[6];
       uniform float uLookFrom, uLookTo, uLookT;
@@ -175,8 +177,8 @@ export function makeSurfaceMaterial(opts: {
         vec3 alb = texture2D(uLookMap, vUv, 0.75).rgb;
         float al = dot(alb, LUMA);
         // the texture's own colour, nudged toward the palette's earths and kept clean (no mud)
-        vec3 pig = mix(alb, rampE(1.0 + al * 5.0) * (0.6 + al), 0.22);
-        pig = max(mix(vec3(dot(pig, LUMA)), pig, 1.3), 0.0);
+        vec3 pig = mix(alb, rampE(1.0 + al * 5.0) * (0.6 + al), 0.22 * (1.0 - uNeutral));
+        pig = max(mix(vec3(dot(pig, LUMA)), pig, mix(1.3, 0.55, uNeutral)), 0.0); // unknown material: stay grey
 
         vec3 nn = perturb(n, 0.45);
         vec2 wq = vec2(vWorld.x + vWorld.z, vWorld.y);

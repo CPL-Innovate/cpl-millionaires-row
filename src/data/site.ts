@@ -48,7 +48,8 @@ export interface MeshModel {
   rotation?: number; // about y; 0 when the model's front (+z) faces south
   provenance: MeshProvenance;
   note: string; // shown on the card: what this mesh is, and what it is not
-  looks?: { map: string; normalMap: string }; // 2k maps for the Watercolour and Texture looks
+  looks?: { map: string; normalMap: string }; // 2k maps for the Watercolour and Texture looks (scripts/house-maps.mjs)
+  neutralWalls?: boolean; // wall material unknown: the watercolour keeps the walls grey, not palette earth
 }
 
 export interface Building {
@@ -117,6 +118,8 @@ export const BUILDINGS: Building[] = [
         frontInventedPastX: 0.14, // the 4th and 5th bays and the veranda end, hidden by trees in 8106
       },
       note: 'Mesh: Tripo image-to-3D spike W1, unscored, not a reconstruction. The façade came out flat; 8106 shows a break in it.',
+      looks: { map: '/models/wade-sr-basecolor.jpg', normalMap: '/models/wade-sr-normal.jpg' },
+      neutralWalls: true,
     },
     status: 'Torn down 1890 by his will',
     ledger: [
@@ -165,6 +168,7 @@ export const BUILDINGS: Building[] = [
       scale: 22.8,
       provenance: { front: 'photographed', sideNegX: 'invented', sidePosX: 'invented', roof: 'inferred', rear: 'invented' },
       note: 'Mesh: Tripo image-to-3D spike S1, unscored, not a reconstruction.',
+      looks: { map: '/models/stager-beckwith-basecolor.jpg', normalMap: '/models/stager-beckwith-normal.jpg' },
     },
     status: 'Survives — the calibration building',
     ledger: [
@@ -215,6 +219,7 @@ export const BUILDINGS: Building[] = [
         inventedBehindZ: 0.15, // the main block's corner: GPT invented the long wing behind it
       },
       note: 'Mesh: Tripo image-to-3D spike R1, unscored, not a reconstruction. The camera orientation of 3475 is a hypothesis.',
+      looks: { map: '/models/rockefeller-basecolor.jpg', normalMap: '/models/rockefeller-normal.jpg' },
     },
     status: 'Demolished 1938',
     ledger: [

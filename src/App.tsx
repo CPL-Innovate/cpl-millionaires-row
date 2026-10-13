@@ -21,7 +21,7 @@ const LEGEND = [
   { k: 'invented', label: 'Invented', hint: 'Construction line — present because the space needs a wall' },
 ];
 
-// Everett's three looks; only the Everett mesh carries a texture so far
+// The modelled houses' three looks; the massing blocks have no texture and stay pencil
 const LOOKS = [
   { id: 'pencil', label: 'Pencil', lines: 1, note: 'Drawn from the evidence: the hatching shows what each face rests on.' },
   { id: 'wash', label: 'Watercolour', lines: 0.45, note: 'The model’s texture as a wash: its detail in the palette’s colours, pencil kept in the shadows.' },
@@ -161,7 +161,7 @@ export default function App() {
 
   const onArrive = (s: Station) => {
     setArrived(s.id);
-    if (s.photo) {
+    if (s.photo && !(import.meta.env.DEV && params.has('nophoto'))) { // dev: ?nophoto keeps the drawing for screenshots
       sound.ui('photo', 0.3);
       const p = { v: 0 };
       gsap.to(p, { v: 1, duration: 1.8, delay: 0.3, ease: 'power1.inOut', onUpdate: () => setPhoto(p.v) });
@@ -216,7 +216,7 @@ export default function App() {
         </section>
 
         <section>
-          <h3>Everett house</h3>
+          <h3>Modelled houses</h3>
           <div className="seg">
             {LOOKS.map((l) => (
               <button key={l.id} className={look === l.id ? 'on' : ''} onClick={() => setLook(l.id)}>
@@ -224,7 +224,7 @@ export default function App() {
               </button>
             ))}
           </div>
-          <p className="note">{LOOKS.find((l) => l.id === look)!.note}</p>
+          <p className="note">{LOOKS.find((l) => l.id === look)!.note} Applies to the four modelled houses; the massing blocks stay pencil.</p>
         </section>
 
         <section>
