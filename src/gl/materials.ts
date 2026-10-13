@@ -194,15 +194,17 @@ export function makeSurfaceMaterial(opts: {
         // reserved whites: bare paper on the brightest sunlit patches
         float reserve = lit * step(0.62, noise2(wq * 0.09 + 0.5) + (s - 0.6) * 0.8);
         D *= 1.0 - reserve * 0.85;
-        // lost edges: the walls bleed out into the lawn
-        D *= smoothstep(0.0, 1.0, (vWorld.y - 0.2) / (1.6 + wob * 2.0));
+        // lost edges: just the foot of the wall bleeds into the lawn (raised bases and porches keep
+        // their colour; the contact dots cover the seam)
+        D *= smoothstep(0.0, 1.0, (vWorld.y - 0.05) / (0.45 + wob * 0.5));
 
         vec3 shade = mix(pig, uFoliage[7] * 0.8, 0.3 * (1.0 - mid));     // violet in the shadows
         shade = mix(shade, shade * vec3(1.06, 1.0, 0.9), lit);            // warm where the sun lands
         vec3 c = mix(uPaper, shade, clamp(D, 0.0, 1.0));
         // keep the pencil in the shadows only
         float h = hatch(vWorld, vec3(900.0, 1400.0, 300.0), 4.6, (1.0 - mid) * 0.32, 0.6);
-        c = mix(c, uPencil, h * 0.28 * (1.0 - smoothstep(70.0, 180.0, vDepth)));
+        // pencil only where there is paint: no lines left floating on bare paper
+        c = mix(c, uPencil, h * 0.28 * smoothstep(0.15, 0.5, D) * (1.0 - smoothstep(70.0, 180.0, vDepth)));
         return c;
       }
       #endif

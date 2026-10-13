@@ -59,7 +59,7 @@ npm run build    # type-check + production build into dist/
   - **Pencil:** the drawing described above.
   - **Watercolour:** the model's texture, painted. It keeps the texture's detail and values, pulls
     the colour toward the palette's earths, lays washes with wet edges, leaves paper white where
-    the sun lands, lets the base bleed into the lawn, and keeps pencil hatching in the shadows.
+    the sun lands, lets the foot of the wall bleed into the lawn, and keeps pencil hatching in the shadows.
   - **Texture:** the Tripo texture as generated, lit by the scene's sun, with a normal map.
   - Switching looks blotches the new one in with the same noise as the street reveal. In every
     look, **Evidence** drains the (inferred) colour and fades the invented faces.
