@@ -13,6 +13,8 @@ import { AVENUE_DEFAULTS, avenueMap } from './avenue';
 
 export type Vec3 = [number, number, number];
 export type Scene = ThreadView['scene'];
+export type FigureKind = 'walker' | 'crowd' | 'sleigh' | 'flag';
+export interface FigureState { kind: FigureKind; x: number; z: number; y: number; o: number; s: number; flip: boolean }
 
 // what the stage applies every frame
 export const rig = {
@@ -28,6 +30,7 @@ export const rig = {
   beds: {} as Record<string, number>, // looping sounds by file → gain
   bedOpts: {} as Record<string, PlayOpts>,
   scene: 'street' as Scene,
+  figures: {} as Record<string, FigureState>, // sketched people and sleighs (threads/Figures)
   gen: 0, // bumped per thread, so the stage drops the last one's beds
 };
 
@@ -62,6 +65,7 @@ export class Kit {
   constructor(start: { pos: Vec3; tgt: Vec3; scene: Scene; reveal?: [number, number]; fov?: number }) {
     const tl = this.tl;
     rig.beds = {};
+    rig.figures = {};
     rig.bedOpts = {};
     tl.set(rig.pos, { x: start.pos[0], y: start.pos[1], z: start.pos[2] }, 0)
       .set(rig.tgt, { x: start.tgt[0], y: start.tgt[1], z: start.tgt[2] }, 0)
@@ -71,7 +75,7 @@ export class Kit {
       .set(avenueMap, { ...AVENUE_DEFAULTS }, 0);
     for (const id of HOUSES) {
       const f = houseFx(id);
-      tl.set(f.uGone, { value: 0 }, 0).set(f.uGlow, { value: 0 }, 0).set(f.uFlicker, { value: 1 }, 0);
+      tl.set(f.uGone, { value: 0 }, 0).set(f.uGlow, { value: 0 }, 0).set(f.uFlicker, { value: 1 }, 0).set(f.uGlowColor.value, { r: 1, g: 0.72, b: 0.36 }, 0);
     }
     this.sceneAt(start.scene, 0, 0, start.reveal ?? [start.pos[0], start.pos[2]], true);
   }
@@ -159,9 +163,10 @@ export class Stop {
     this.k.tl.to(houseFx(id).uGone, { value: v, duration: dur, ease }, this.mark(at, dur));
     return this;
   }
-  glow(id: string, v: number, dur: number, at = 0, o: { flicker?: number } = {}) {
+  glow(id: string, v: number, dur: number, at = 0, o: { flicker?: number; color?: [number, number, number] } = {}) {
     const t = this.mark(at, dur), f = houseFx(id);
     if (o.flicker !== undefined) this.k.tl.set(f.uFlicker, { value: o.flicker }, t);
+    if (o.color) this.k.tl.set(f.uGlowColor.value, { r: o.color[0], g: o.color[1], b: o.color[2] }, t);
     this.k.tl.to(f.uGlow, { value: v, duration: dur, ease: 'power1.inOut' }, t);
     return this;
   }
@@ -172,6 +177,19 @@ export class Stop {
     for (const [k, v] of Object.entries(vars)) (typeof v === 'string' ? strs : nums)[k] = v as never;
     if (Object.keys(strs).length) this.k.tl.set(avenueMap, strs, t);
     if (Object.keys(nums).length) this.k.tl.to(avenueMap, { ...nums, duration: Math.max(0.01, dur), ease }, t);
+    return this;
+  }
+  // a sketched figure (threads/Figures): declared on first use, then moved and faded
+  figure(id: string, kind: FigureKind, vars: Partial<Omit<FigureState, 'kind'>>, dur: number, at = 0, ease = 'none') {
+    const t = this.mark(at, dur);
+    let f = rig.figures[id];
+    if (!f) {
+      f = rig.figures[id] = { kind, x: vars.x ?? 0, z: vars.z ?? 0, y: 0, o: 0, s: 1, flip: false };
+      this.k.tl.set(f, { x: f.x, z: f.z, y: 0, o: 0, s: 1, flip: false }, 0);
+    }
+    const { flip, ...nums } = vars;
+    if (flip !== undefined) this.k.tl.set(f, { flip }, t);
+    if (Object.keys(nums).length) this.k.tl.to(f, { ...nums, duration: Math.max(0.01, dur), ease }, t);
     return this;
   }
   tween(target: object, vars: gsap.TweenVars, at = 0) {

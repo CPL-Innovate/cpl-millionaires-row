@@ -16,6 +16,7 @@ import { sound } from './audio/engine';
 import { AudioDirector } from './audio/AudioDirector';
 import { GeneratorPanel } from './ui/GeneratorPanel';
 import { ThreadStage } from './threads/ThreadStage';
+import { Figures } from './threads/Figures';
 import { ThreadMenu, ThreadPlayer } from './threads/ThreadPlayer';
 import { player } from './threads/player';
 import { useThread } from './threads/store';
@@ -245,6 +246,7 @@ export default function App() {
         <CameraRig mode={mode} mapStyle={mapStyle} focusLot={selLot} stationId={stationId} onArrive={onArrive} thread={threading} />
         <AtlasPicker active={atlasOn && !threading} onHover={onHoverLot} onPick={onPickLot} />
         <ThreadStage />
+        {threading && <Figures />}
         {fps && <PerfProbe />}
         <AudioDirector />
       </Canvas>
