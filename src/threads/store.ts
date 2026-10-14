@@ -58,4 +58,7 @@ export const threadStore = {
   subscribe(f: () => void) { subs.add(f); return () => { subs.delete(f); }; },
 };
 
+// a thread has the camera (read by the scene without pulling in the threads themselves)
+export const threadState = { active: false };
+
 export const useThread = () => useSyncExternalStore(threadStore.subscribe, threadStore.get);

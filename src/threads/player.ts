@@ -1,12 +1,12 @@
 import { resetHouseFx, U } from '../gl/uniforms';
 import { sound } from '../audio/engine';
 import { rig, type Kit, type Scene } from './kit';
-import { threadStore } from './store';
+import { threadState, threadStore } from './store';
 import { THREADS } from './index';
 import { avenueReset } from './avenue';
 
 // Starts, steers and leaves a thread. The App hands the scene back to the walker or the map on exit.
-export const threadState = { active: false };
+export { threadState };
 
 let kit: Kit | null = null;
 
