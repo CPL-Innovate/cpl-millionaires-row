@@ -257,7 +257,9 @@ export interface Station {
   caption: string;
   position: [number, number, number];
   target: [number, number, number];
-  photo?: { url: string; id: string; label: string; aspect: number };
+  // fit: where the print sits in the frame, matched by eye to the drawing: its height as a fraction
+  // of the frame's (default 0.78) and an offset of its centre in frame heights (+x right, +y up)
+  photo?: { url: string; id: string; label: string; aspect: number; fit?: { scale?: number; shift?: [number, number] } };
 }
 
 // Camera positions are eyeballed to approximate each photograph’s view. fSpy solves replace these.
@@ -272,9 +274,10 @@ export const STATIONS: Station[] = [
   {
     id: 'everett',
     title: 'Everett, from the SW lawn',
-    caption: 'CPL 63 — the oblique the spike scores against. Camera position approximate.',
-    position: [-10, 1.6, -12],
-    target: [28, 10, -42],
+    caption: 'CPL 63 — the oblique the spike scores against. Camera registered to the photograph.',
+    // registered to the photograph by its skyline (tower, roofs) and base: the camera stood on Euclid
+    position: [10.48, 1.6, -1.82],
+    target: [23.44, 11.62, -44.91],
     photo: { url: '/img/everett-63.jpg', id: 'p4014coll14:63', label: 'Everett residence, c. 1886', aspect: 1393 / 1062 },
   },
   {
@@ -288,9 +291,10 @@ export const STATIONS: Station[] = [
     id: 'wade',
     title: 'Wade villa, up the drive',
     caption: 'Sweeny stereograph — the corner house that had to die.',
-    position: [-27, 1.6, -50],
-    target: [-38, 7, -88],
-    photo: { url: '/img/wade-8106.jpg', id: 'p4014coll18:8106', label: 'J. H. Wade residence (Sweeny stereograph)', aspect: 550 / 530 },
+    // registered to the stereograph by its skyline (roof, belvedere): south-west of the house, up the drive
+    position: [-56.2, 1.6, -51.96],
+    target: [-37.7, 3.37, -84.0],
+    photo: { url: '/img/wade-8106.jpg', id: 'p4014coll18:8106', label: 'J. H. Wade residence (Sweeny stereograph)', aspect: 550 / 530, fit: { scale: 0.8 } },
   },
   {
     id: 'rockefeller',
@@ -304,8 +308,10 @@ export const STATIONS: Station[] = [
     id: 'stager',
     title: 'Stager–Beckwith, from Euclid',
     caption: 'The one face a photograph shows, and the house that survives: the calibration building.',
-    position: [-122, 1.6, -42],
-    target: [-136, 8, -92],
+    // registered to the lawn stereoview by its skyline (tower, mansards) and the veranda arches
+    position: [-134.15, 1.6, -66.37],
+    target: [-136.59, 6.18, -94.26],
+    photo: { url: '/img/stager-beckwith-lawn.jpg', id: 'Wilson II, p. 73', label: 'The Beckwith home, with Mrs. Beckwith and friends on the lawn (stereoview)', aspect: 665 / 541, fit: { scale: 0.83 } },
   },
   {
     id: 'st-pauls',

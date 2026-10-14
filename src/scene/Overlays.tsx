@@ -25,9 +25,13 @@ export function PhotoGhost({ station, opacity }: { station: Station; opacity: nu
     const m = new THREE.Matrix4().lookAt(from, pos, new THREE.Vector3(0, 1, 0));
     const quat = new THREE.Quaternion().setFromRotationMatrix(m);
     const fov = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
-    const h = 2 * D * Math.tan(fov / 2) * 0.78;
+    const frameH = 2 * D * Math.tan(fov / 2);
+    const h = frameH * (photo.fit?.scale ?? 0.78);
+    // slide the print across its own plane by the fit's shift
+    const [sx, sy] = photo.fit?.shift ?? [0, 0];
+    pos.add(new THREE.Vector3(sx * frameH, sy * frameH, 0).applyQuaternion(quat));
     return { pos, quat, w: h * photo.aspect, h };
-  }, [station, camera, photo.aspect]);
+  }, [station, camera, photo.aspect, photo.fit]);
 
   return (
     <mesh position={pos} quaternion={quat} material={mat} renderOrder={10}>

@@ -56,8 +56,11 @@ npm run build    # type-check + production build into dist/
 - **Street mode:** drag to look, WASD or the arrow keys to walk, shift to hurry. Numbered pins are
   sourced story beats.
 - **Stations:** at each matched view, the CPL photograph inks in over the scene. The
-  **Photograph** slider fades between photo and drawing. *Stager–Beckwith, from Euclid* has no
-  photo overlay (its front photograph is WRHS, rights unconfirmed). *Everett, from the NE* shows the side no
+  **Photograph** slider fades between photo and drawing. Everett (CPL 63), Wade (8106) and
+  Stager–Beckwith (the lawn stereoview with parasols, apparently Wilson II p. 73; source and
+  rights to confirm) are registered to their photographs: the camera was searched by matching the
+  house's silhouette against the sky to the photo's, then checked by eye (`photo.fit` in
+  `data/site.ts` sets the print's size). *Everett, from the NE* shows the side no
   photograph records; push **Evidence** to see what the model invented.
 - **Palettes:** Graphite, Sepia ink, Cyanotype.
 - **Painterly / 1888:** Painterly (the default) is the impression, tuned for the eye: autumn

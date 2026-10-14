@@ -44,6 +44,8 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
   const look = useRef({ yaw: 0, pitch: 0 });
   const tweening = useRef(false);
   const keys = useRef<Record<string, boolean>>({});
+  // eye height: a station's own (its photographer's) until you walk off, then a standing visitor's
+  const eye = useRef(EYE);
   const prevMode = useRef<Mode>('map');
   const lookTarget = useMemo(() => FRAMES[mapStyle].target.clone(), []); // eslint-disable-line react-hooks/exhaustive-deps
   const mapTarget = useMemo(() => FRAMES[mapStyle].target.clone(), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,6 +168,7 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
       tl.call(() => {
         gsap.to(U.uAtlas, { value: 0, duration: 1.2, ease: 'power1.in' }); // the paint has the street now
         look.current = { ...end };
+        eye.current = to.y;
         camera.rotation.set(end.pitch, end.yaw, 0, 'YXZ');
         tweening.current = false;
         onArrive(station);
@@ -194,6 +197,18 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, stationId]);
 
+  // dev: set a street pose by hand (photo matching): __pose([x, y, z], [tx, ty, tz])
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { __cam: unknown }).__cam = camera;
+    (window as unknown as { __pose: unknown }).__pose = (p: [number, number, number], t: [number, number, number]) => {
+      const from = new THREE.Vector3(...p);
+      camera.position.copy(from);
+      eye.current = p[1];
+      look.current = yawPitchTo(from, new THREE.Vector3(...t));
+    };
+  }, [camera]);
+
   useFrame((_, dt) => {
     walkState.moving = false;
     if (mode !== 'street' || tweening.current) return;
@@ -202,11 +217,12 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
     const f = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
     const r = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
     walkState.moving = f !== 0 || r !== 0;
+    if (walkState.moving) eye.current += (EYE - eye.current) * Math.min(1, dt * 3);
     walkState.hurry = !!k['shift'];
     const yaw = look.current.yaw;
     camera.position.x += (-Math.sin(yaw) * f + Math.cos(yaw) * r) * speed;
     camera.position.z += (-Math.cos(yaw) * f - Math.sin(yaw) * r) * speed;
-    camera.position.y = EYE;
+    camera.position.y = eye.current;
     camera.rotation.set(look.current.pitch, look.current.yaw, 0, 'YXZ');
   });
 

@@ -318,7 +318,7 @@ export default function App() {
             <input type="range" min={0} max={1} step={0.01} value={photo} onChange={(e) => setPhoto(+e.target.value)} />
             <div className="ends"><span>Drawing</span><span>CPL photo</span></div>
             <p className="note">
-              {station.photo.label} — <code>{station.photo.id}</code>. Camera position approximate (fSpy pending).
+              {station.photo.label} — <code>{station.photo.id}</code>. Camera registered to the photograph by eye and silhouette (fSpy pending).
             </p>
           </section>
         )}
