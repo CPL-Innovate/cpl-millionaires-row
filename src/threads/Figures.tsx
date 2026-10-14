@@ -99,6 +99,34 @@ function Figure({ id }: { id: string }) {
   return <sprite ref={ref} renderOrder={5} />;
 }
 
+// streetcar rails along Euclid's centre, ties and all, drawing themselves east → west as rig.rails runs
+function Rails() {
+  // flat ink ribbons a little above the ground dots (lines would sink into the carpet)
+  const { geo, n } = useMemo(() => {
+    const p: number[] = [];
+    const quad = (x0: number, z0: number, x1: number, z1: number, y: number) => p.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z0, x1, y, z1, x0, y, z1);
+    const X1 = 140, X0 = -255, G = 0.72; // standard gauge ≈ 1.44 m
+    for (let x = X1; x > X0; x -= 1.2) {
+      quad(x - 1.2, -G - 0.05, x, -G + 0.05, 0.3); // the two rails
+      quad(x - 1.2, G - 0.05, x, G + 0.05, 0.3);
+      quad(x - 0.62, -G - 0.4, x - 0.5, G + 0.4, 0.28); // a tie
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    return { geo: g, n: p.length / 3 };
+  }, []);
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({ color: new THREE.Color(0.22, 0.19, 0.17), side: THREE.DoubleSide }), []);
+  useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    if (!ref.current) return;
+    const k = Math.floor((rig.rails * n) / 18) * 18;
+    geo.setDrawRange(0, k);
+    ref.current.visible = k > 0;
+  });
+  return <mesh ref={ref} geometry={geo} material={mat} renderOrder={3} />;
+}
+
 // the set of figures changes only when a thread starts (each thread declares its own)
 export function Figures() {
   const ids = useRef<{ gen: number; ids: string[] }>({ gen: -1, ids: [] });
@@ -107,5 +135,5 @@ export function Figures() {
     const now = Object.keys(rig.figures);
     if (ids.current.gen !== rig.gen || now.length !== ids.current.ids.length) { ids.current = { gen: rig.gen, ids: now }; force(); }
   });
-  return <group>{ids.current.ids.map((id) => <Figure key={`${ids.current.gen}-${id}`} id={id} />)}</group>;
+  return <group>{ids.current.ids.map((id) => <Figure key={`${ids.current.gen}-${id}`} id={id} />)}<Rails /></group>;
 }

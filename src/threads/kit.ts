@@ -27,6 +27,7 @@ export const rig = {
   street: 1, // sound mode: street (1) or map (0)
   dark: 0, // the frame fades toward black (Listen)
   shake: 0, // handheld: metres of drift the stage adds on top of the shot
+  rails: 0, // streetcar rails drawn down Euclid, east → west (0–1; The Line, 1915)
   beds: {} as Record<string, number>, // looping sounds by file → gain
   bedOpts: {} as Record<string, PlayOpts>,
   scene: 'street' as Scene,
@@ -69,7 +70,7 @@ export class Kit {
     rig.bedOpts = {};
     tl.set(rig.pos, { x: start.pos[0], y: start.pos[1], z: start.pos[2] }, 0)
       .set(rig.tgt, { x: start.tgt[0], y: start.tgt[1], z: start.tgt[2] }, 0)
-      .set(rig, { fov: start.fov ?? 50, duck: 1, quiet: 0, music: 0, dark: 0, shake: 0, street: start.scene === 'street' ? 1 : 0, scene: start.scene }, 0)
+      .set(rig, { fov: start.fov ?? 50, duck: 1, quiet: 0, music: 0, dark: 0, shake: 0, rails: 0, street: start.scene === 'street' ? 1 : 0, scene: start.scene }, 0)
       .set(U.uNight, { value: 0 }, 0)
       .set(U.uEvidence, { value: 0 }, 0)
       .set(avenueMap, { ...AVENUE_DEFAULTS }, 0);
@@ -216,6 +217,7 @@ export class Stop {
   duck(level: number, dur: number, at = 0) { this.k.tl.to(rig, { duck: level, duration: Math.max(0.01, dur), ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   quiet(on: boolean, at = 0) { this.k.tl.set(rig, { quiet: on ? 1 : 0 }, this.mark(at)); return this; }
   music(level: number, dur: number, at = 0) { this.k.tl.to(rig, { music: level, duration: Math.max(0.01, dur) }, this.mark(at, dur)); return this; }
+  rails(v: number, dur: number, at = 0) { this.k.tl.to(rig, { rails: v, duration: Math.max(0.01, dur), ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   shake(amp: number, dur: number, at = 0) { this.k.tl.to(rig, { shake: amp, duration: Math.max(0.01, dur), ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   dark(v: number, dur: number, at = 0) { this.k.tl.to(rig, { dark: v, duration: Math.max(0.01, dur), ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   caption(text: string, at = 0, dur = 4) { this.k.captions.push({ at: this.mark(at, dur), dur, text }); return this; }
