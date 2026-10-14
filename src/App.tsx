@@ -19,6 +19,7 @@ import { ThreadStage } from './threads/ThreadStage';
 import { ThreadMenu, ThreadPlayer } from './threads/ThreadPlayer';
 import { player } from './threads/player';
 import { useThread } from './threads/store';
+import { AvenueMap } from './threads/AvenueMap';
 import './App.css';
 
 const LEGEND = [
@@ -369,6 +370,7 @@ export default function App() {
         ))}
       </nav>
 
+      {threading && <AvenueMap />}
       <ThreadPlayer soundOn={soundOn} onSound={() => toggleSound(true)} />
       {menu && !threading && <ThreadMenu onClose={() => setMenu(false)} onPick={(id) => startThread(id)} />}
 

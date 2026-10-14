@@ -4,6 +4,7 @@ import { U, houseFx } from '../gl/uniforms';
 import { sound, type PlayOpts } from '../audio/engine';
 import { BUILDINGS, plateToWorld } from '../data/site';
 import type { Caption, Panel, StopInfo, ThreadView } from './store';
+import { AVENUE_DEFAULTS, avenueMap } from './avenue';
 
 // The toolkit every thread is choreographed with. A thread is one paused gsap timeline, built stop
 // by stop; every piece of state it touches (camera, grade, houses, ambience levels, beds) is tweened
@@ -65,7 +66,8 @@ export class Kit {
       .set(rig.tgt, { x: start.tgt[0], y: start.tgt[1], z: start.tgt[2] }, 0)
       .set(rig, { fov: start.fov ?? 50, duck: 1, quiet: 0, music: 0, dark: 0, street: start.scene === 'street' ? 1 : 0, scene: start.scene }, 0)
       .set(U.uNight, { value: 0 }, 0)
-      .set(U.uEvidence, { value: 0 }, 0);
+      .set(U.uEvidence, { value: 0 }, 0)
+      .set(avenueMap, { ...AVENUE_DEFAULTS }, 0);
     for (const id of HOUSES) {
       const f = houseFx(id);
       tl.set(f.uGone, { value: 0 }, 0).set(f.uGlow, { value: 0 }, 0).set(f.uFlicker, { value: 1 }, 0);
@@ -160,6 +162,15 @@ export class Stop {
     const t = this.mark(at, dur), f = houseFx(id);
     if (o.flicker !== undefined) this.k.tl.set(f.uFlicker, { value: o.flicker }, t);
     this.k.tl.to(f.uGlow, { value: v, duration: dur, ease: 'power1.inOut' }, t);
+    return this;
+  }
+  // the Avenue map overlay (threads/AvenueMap): tween any of its fields; strings are set
+  map(vars: Partial<typeof avenueMap>, dur: number, at = 0, ease = 'power2.inOut') {
+    const t = this.mark(at, dur);
+    const nums: Record<string, number> = {}, strs: Record<string, string> = {};
+    for (const [k, v] of Object.entries(vars)) (typeof v === 'string' ? strs : nums)[k] = v as never;
+    if (Object.keys(strs).length) this.k.tl.set(avenueMap, strs, t);
+    if (Object.keys(nums).length) this.k.tl.to(avenueMap, { ...nums, duration: Math.max(0.01, dur), ease }, t);
     return this;
   }
   tween(target: object, vars: gsap.TweenVars, at = 0) {
