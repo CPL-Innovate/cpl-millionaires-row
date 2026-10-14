@@ -19,6 +19,8 @@ export interface Panel {
   footer?: string;
   archive?: Archive[];
   spoken?: boolean; // Listen: the panel is narration; text kept small
+  focus?: Archive & { note?: string }; // one print, large and centred, slowly pushed into (Who's Missing)
+  blanks?: number; // that many blank caption cards, "name unknown" (Who's Missing)
 }
 export interface StopInfo { title: string; at: number; panel: Panel }
 export interface Caption { at: number; dur: number; text: string }

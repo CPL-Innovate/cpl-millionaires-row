@@ -58,6 +58,19 @@ export function ThreadPlayer({ soundOn, onSound }: { soundOn: boolean; onSound: 
           ))}
         </div>
       )}
+      {!v.ended && p.focus && (
+        <figure className={`focus-print ${p.focus.img ? '' : 'pending'}`} key={`f${v.stop}`}>
+          <div className="push">
+            {p.focus.img ? <img src={p.focus.img} alt={p.focus.label} /> : <div className="ph"><span>{p.focus.id}</span><span>not yet in the build</span></div>}
+          </div>
+          <figcaption>{p.focus.label}{p.focus.note && <b>{p.focus.note}</b>}</figcaption>
+        </figure>
+      )}
+      {!v.ended && p.blanks && (
+        <ol className="blanks" key={`b${v.stop}`} aria-label={`${p.blanks} unnamed people`}>
+          {Array.from({ length: p.blanks }, (_, i) => <li key={i} style={{ animationDelay: `${0.6 + i * 0.22}s` }}>name unknown</li>)}
+        </ol>
+      )}
       {!v.ended && p.archive && (
         <div className="prints" key={`p${v.stop}`}>
           {p.archive.map((a) => <Print key={a.label} a={a} />)}
