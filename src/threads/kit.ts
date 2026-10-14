@@ -61,6 +61,7 @@ export class Kit {
   endCard?: string;
   endScene: Scene = 'street';
   seeking = false;
+  readonly lookStart = { look: U.uLookTo.value, lines: U.uLookLines.value }; // the visitor's house look
   private t0 = 0;
 
   constructor(start: { pos: Vec3; tgt: Vec3; scene: Scene; reveal?: [number, number]; fov?: number }) {
@@ -73,7 +74,9 @@ export class Kit {
       .set(rig, { fov: start.fov ?? 50, duck: 1, quiet: 0, music: 0, dark: 0, shake: 0, rails: 0, street: start.scene === 'street' ? 1 : 0, scene: start.scene }, 0)
       .set(U.uNight, { value: 0 }, 0)
       .set(U.uEvidence, { value: 0 }, 0)
-      .set(avenueMap, { ...AVENUE_DEFAULTS }, 0);
+      .set(avenueMap, { ...AVENUE_DEFAULTS }, 0)
+      .set(U.uLookFrom, { value: this.lookStart.look }, 0).set(U.uLookTo, { value: this.lookStart.look }, 0)
+      .set(U.uLookT, { value: 1 }, 0).set(U.uLookLines, { value: this.lookStart.lines }, 0);
     for (const id of HOUSES) {
       const f = houseFx(id);
       tl.set(f.uGone, { value: 0 }, 0).set(f.uGlow, { value: 0 }, 0).set(f.uFlicker, { value: 1 }, 0).set(f.uGlowColor.value, { r: 1, g: 0.72, b: 0.36 }, 0);
@@ -156,6 +159,14 @@ export class Stop {
   // scene
   scene(name: Scene, dur: number, at = 0, centre?: [number, number]) {
     this.k.sceneAt(name, this.mark(at, dur), dur, centre);
+    return this;
+  }
+  // the modelled houses' look (0 pencil, 1 watercolour, 2 texture), blotching in from the visitor's
+  look(i: number, lines: number, dur: number, at = 0) {
+    const t = this.mark(at, dur);
+    this.k.tl.set(U.uLookFrom, { value: this.k.lookStart.look }, t).set(U.uLookTo, { value: i }, t)
+      .fromTo(U.uLookT, { value: 0 }, { value: 1, duration: dur, ease: 'power1.inOut', immediateRender: false }, t)
+      .to(U.uLookLines, { value: lines, duration: dur, ease: 'power1.inOut' }, t);
     return this;
   }
   night(v: number, dur: number, at = 0) { this.k.tl.to(U.uNight, { value: v, duration: dur, ease: 'power1.inOut' }, this.mark(at, dur)); return this; }

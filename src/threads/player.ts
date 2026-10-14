@@ -9,6 +9,7 @@ import { avenueReset } from './avenue';
 export { threadState };
 
 let kit: Kit | null = null;
+let savedLook = { from: 0, to: 0, t: 1, lines: 1 }; // the visitor's house look, given back on exit
 
 export const player = {
   onExit: (_scene: Scene) => {},
@@ -19,6 +20,7 @@ export const player = {
     if (!def) return;
     this.kill();
     sound.threadReset();
+    savedLook = { from: U.uLookFrom.value, to: U.uLookTo.value, t: U.uLookT.value, lines: U.uLookLines.value };
     const k = def.build();
     kit = k;
     threadState.active = true;
@@ -84,6 +86,7 @@ export const player = {
     resetHouseFx();
     U.uNight.value = 0;
     U.uEvidence.value = 0;
+    U.uLookFrom.value = savedLook.from; U.uLookTo.value = savedLook.to; U.uLookT.value = savedLook.t; U.uLookLines.value = savedLook.lines;
     rig.dark = 0;
     avenueReset();
     sound.threadReset();
