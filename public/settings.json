@@ -54,7 +54,7 @@
   "eras": {},
   "houses": {
     "everett": {
-      "pigment": 0.66,
+      "pigment": 0.7,
       "shadowDepth": 0.39,
       "lightness": -0.03,
       "paletteTint": 0.24,
@@ -72,7 +72,8 @@
       "roofFrom": 0.08,
       "roofSlate": 0.48,
       "roofViolet": 0.4,
-      "roofWhites": 0.22
+      "roofWhites": 0.22,
+      "reserve": 0.13
     },
     "rockefeller": {
       "relief": 0.41,
@@ -117,6 +118,29 @@
       "roofWhites": 1,
       "roofSlate": 0.44,
       "roofViolet": 0.65
+    },
+    "wade-sr": {
+      "pigment": 1.09,
+      "shadowDepth": 0.4,
+      "lightness": -0.06,
+      "paletteTint": 0.31,
+      "saturation": 0.93,
+      "violet": 0.74,
+      "warmth": 0.185,
+      "wobble": 0.12,
+      "wetEdges": 0.15,
+      "granulation": 0.36,
+      "reserve": 0.35,
+      "bleed": 0.04,
+      "pencil": 0.53,
+      "softness": 0.33,
+      "relief": 0.39,
+      "roofFrom": 0.45,
+      "roofPaint": 0.61,
+      "roofWhites": 1,
+      "roofSlate": 0.55,
+      "roofViolet": 0.43
     }
-  }
+  },
+  "colorSpace": 2
 }
