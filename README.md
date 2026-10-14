@@ -41,7 +41,15 @@ npm run build    # type-check + production build into dist/
 
 ## Using it
 
-- **Map mode:** the 1881 Hopkins Plates 3 and 5, georeferenced into one north-up map. Pick a house
+- **Atlas (prototype, the default map):** the 3D street seen from a bird's-eye view and drawn as an
+  engraving. The plate's linework is inked on bare paper, each tree is a single watercolour shape (a
+  lobed sage wash, pooled dark on the shade side, a thin trunk, a pale ground shadow; `AtlasTrees`),
+  and the houses are in pencil. Hover a lot and it hatches in red, with its name set
+  large; click to select it and fly there, click again (or "Walk the street") to descend, and the
+  paint takes over from the ink. Drag to fly, right-drag to turn, scroll to zoom. Nine lots are
+  traced so far (`LOTS` in `data/site.ts`, plate px); the lot strip runs west to east along the
+  bottom.
+- **Map mode (1881 plate):** the 1881 Hopkins Plates 3 and 5, georeferenced into one north-up map. Pick a house
   or a station to descend.
 - **Street mode:** drag to look, WASD or the arrow keys to walk, shift to hurry. Numbered pins are
   sourced story beats.
@@ -82,7 +90,8 @@ npm run build    # type-check + production build into dist/
   - Background loops for the street, a distant 1880s city and the wind. 1888 gets wind in bare
     elms, Painterly a leafy rustle. Map mode is a hushed reading room.
   - In the scene: Brush's windmill and the nearest gas lamp get louder as you approach.
-    Carriages trot past along Euclid, and crows call from the trees (more of them in 1888).
+    Four carriages walk Euclid in dots (coach, driver, turning wheels, a pair of horses on a looped
+    stride), and each one's sound is panned along with it as it passes you. Crows call from the trees (more of them in 1888).
   - Footsteps match what you're walking on: roadway, flagstone or lawn.
   - Story beats have their own sounds. At St. Paul's, or with "The silent bells" open, the street
     falls quiet and a single bell answers from far across the city.
@@ -100,7 +109,7 @@ npm run build    # type-check + production build into dist/
 - **Performance:** Full or Light (fewer, larger bark and ground dots at 1× pixel density; the
   default on touch devices). **Show frame rate** (or `?fps`) puts frame time, point count and
   draw calls at the top of the screen.
-- **Deep links:** `?station=everett&palette=sepia&evidence=0.6&look=wash&era=1888&gen` (`look` is
+- **Deep links:** `?map=plate` opens on the flat plate instead of the Atlas; `?station=everett&palette=sepia&evidence=0.6&look=wash&era=1888&gen` (`look` is
   `pencil`, `wash` or `texture`; `era` is `painterly` or `1888`)
 
 ## How it's built
@@ -122,15 +131,22 @@ src/
   scene/CameraRig.tsx   Map ↔ street transitions, walking, station moves
   scene/Overlays.tsx    Photo ghosts, story pins, map labels
   scene/walk.ts         Walking state shared with the audio
+  scene/Carriages.tsx   Carriages on Euclid: dots scattered over the slim rig, wheels spun, horse
+                        dots blended between 16 stride keys each frame (scene/traffic.ts → audio)
   audio/engine.ts       Web Audio: ambience beds, positional sounds, footsteps, beats, music, mix
   audio/AudioDirector.tsx  Listener on the camera, windmill/lamp placement, footsteps by surface
   settings/             Generator schema + store (eras, quality, per-house watercolour, autosave,
                         presets, project defaults)
   ui/GeneratorPanel.tsx The Generator drawer (incl. Watercolour · per house)
   ui/Perf.tsx           Frame-rate probe (?fps)
+  scene/AtlasPicker.tsx Atlas hover/click: pointer → ground → plate px → lot
+  scene/AtlasTrees.tsx  Atlas trees: one instanced watercolour shape + ground shadow per tree
+  gl/lots.ts            Lot id texture for the ground shader, point-in-lot, lot centres
 scripts/
   compose_plate.py      Georeferences Plates 3 + 5 into public/plates/euclid-case-1881.jpg
   strip-everett.mjs     Slims the Everett spike mesh (drops unused PBR maps)
+  bake-carriage.py      Blender: Carriage/ FBX + .pc2 point cache → slim rig with baked vertex
+                        colours and one looping stride as morph keys (then `gltf-transform meshopt`)
   slim-model.mjs        Slims a raw Tripo export: base colour only, ~85k triangles, 1K map, meshopt
   house-maps.mjs        Extracts a house's 2k colour + normal maps for the Watercolour and Texture looks
   gen-sounds.mjs        Generates sounds and music with ElevenLabs from sounds.json
@@ -228,7 +244,7 @@ sound and music with volume sliders. In priority order:
 7. **A listening pass** on the 32 sounds and two music pieces; regenerate the sound effects on the
    paid ElevenLabs account before any public build (they were made on a free account).
 8. Later: the winter sleigh race (a Generator preset plus the winter sounds already generated),
-   figures and carriages drawn in dots, and calibrating 1888's colours with L&GH.
+   figures drawn in dots (carriages done), and calibrating 1888's colours with L&GH.
 
 Done since the first spike: Painterly / 1888, gathering dots and developing photos, frame rate and
 Light, sound and music, the plate seam and registration, three more houses, the looks for every

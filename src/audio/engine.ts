@@ -291,17 +291,16 @@ class SoundEngine {
     this.play(`step-${surface}`, { gain: hurry ? 0.5 : 0.4, offset: Math.max(0, on[i] - 0.02), dur, rate: 0.94 + Math.random() * 0.12 });
   }
 
-  // a carriage trots past along Euclid: the panner travels the street while the take plays, timed so
-  // the loudest moment (mid-take) is the closest approach
-  async carriage(listenerX: number) {
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    const z = (Math.random() < 0.5 ? -1 : 1) * (2.5 + Math.random() * 3);
-    const r = await this.play(pick(['carriage-pass-1', 'carriage-pass-2']), { gain: 0.75, at: [listenerX - dir * 45, 1.2, z], ref: 8 });
+  // a carriage in the scene is about to pass (see AudioDirector): the panner rides along with it,
+  // and the take is started so its loudest moment (mid-take) lands on the closest approach
+  async carriage(c: { x: number; z: number; dir: number; speed: number }) {
+    if (this.mode !== 'street') return;
+    const r = await this.play(pick(['carriage-pass-1', 'carriage-pass-2']), { gain: 0.75, at: [c.x, 1.2, c.z], ref: 8 });
     if (!r?.panner || !this.ctx) return;
-    const t = this.ctx.currentTime;
-    r.panner.positionX.setValueAtTime(listenerX - dir * 45, t);
-    r.panner.positionX.linearRampToValueAtTime(listenerX + dir * 45, t + 14);
-    if (Math.random() < 0.35) this.play(pick(['horse-snort-1', 'horse-snort-2']), { gain: 0.5, at: [listenerX - dir * 8, 1.6, z], delay: 5.5, ref: 5 });
+    const t = this.ctx.currentTime, v = c.dir * c.speed;
+    r.panner.positionX.setValueAtTime(c.x, t);
+    r.panner.positionX.linearRampToValueAtTime(c.x + v * 14, t + 14);
+    if (Math.random() < 0.35) this.play(pick(['horse-snort-1', 'horse-snort-2']), { gain: 0.5, at: [c.x + v * 5.5 + c.dir * 2.5, 1.6, c.z], delay: 5.5, ref: 5 });
   }
 
   // ---------------------------------------------------------------- ambient events
@@ -319,7 +318,6 @@ class SoundEngine {
       };
       tick();
     };
-    every(18, 45, () => { if (this.mode === 'street') this.carriage(this.listenerX); });
     // crows in the bare trees: more of them in 1888
     every(14, 40, () => {
       if (this.mode !== 'street' || (this.era === 'painterly' && Math.random() < 0.6)) return;

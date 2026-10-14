@@ -138,8 +138,8 @@ export const ERA_1888 = {
   // foliage ramp, shadow → light (lawn olive → elm yellow → cream), then the two accent slots
   // become maple rust and oak brown
   colors: {
-    graphite: { foliage: ['#8a9655', '#a2a95e', '#bbb869', '#d4c575', '#ead48a', '#f7ebc6', '#c66a48', '#a07f5e'] },
-    sepia: { foliage: ['#948748', '#ab9d52', '#c4b062', '#dbc277', '#ecd69c', '#f8ebcb', '#b86048', '#94714c'] },
+    graphite: { foliage: ['#414e17', '#5c651d', '#7f7a24', '#a88e2d', '#d2a841', '#edd490', '#902511', '#5a361d'] },
+    sepia: { foliage: ['#4c3e11', '#685616', '#8d6f1f', '#b58a2f', '#d6ab55', '#efd498', '#7a1e11', '#4c2a12'] },
   } as Partial<Record<string, { foliage?: string[] }>>,
 };
 

@@ -22,6 +22,7 @@ export interface Settings {
   colors: Colors;
   eras?: Partial<Record<EraId, EraLayer>>;
   houses?: Record<string, Record<string, number>>; // per-house watercolour settings (WASH_PARAMS)
+  colorSpace?: 2; // 2: ramp hexes are the colours on screen (see migrateColors)
 }
 
 const AUTOSAVE = 'mr-settings-v1';
@@ -29,12 +30,32 @@ const PRESETS = 'mr-presets-v1';
 const ERA = 'mr-era-v1';
 const QUALITY = 'mr-quality-v1';
 
+// Until colour handling was fixed, ramp colours were decoded from sRGB twice, so a saved hex showed
+// as a darker colour than it names. Settings saved before then are rewritten once to the colour
+// they actually showed, so nothing changes on screen. (Paper was always meant to be the page.)
+const decodeHex = (hex: string) => {
+  const ch = (i: number) => {
+    const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
+    const l = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    return Math.round(l * 255).toString(16).padStart(2, '0');
+  };
+  return /^#[0-9a-f]{6}$/i.test(hex) ? `#${ch(0)}${ch(1)}${ch(2)}` : hex;
+};
+function migrateColors<T extends Partial<Settings>>(s: T | null): T | null {
+  if (!s || s.colorSpace === 2) return s;
+  const fix = (c?: Colors): Colors | undefined =>
+    c && Object.fromEntries(Object.entries(c).map(([p, o]) => [p, { ...o, foliage: o?.foliage?.map(decodeHex), earth: o?.earth?.map(decodeHex) }]));
+  const eras = s.eras && Object.fromEntries(Object.entries(s.eras).map(([k, l]) => [k, { ...l, colors: fix(l?.colors) }]));
+  return { ...s, colors: fix(s.colors), eras, colorSpace: 2 };
+}
+
 const clone = (s: Settings): Settings => JSON.parse(JSON.stringify(s));
 const merge = (base: Settings, over?: Partial<Settings> | null): Settings => ({
   v: { ...base.v, ...(over?.v ?? {}) },
   colors: { ...base.colors, ...(over?.colors ?? {}) },
   eras: { ...base.eras, ...(over?.eras ?? {}) },
   houses: { ...base.houses, ...(over?.houses ?? {}) },
+  colorSpace: 2,
 });
 
 function readLocal<T>(key: string): T | null {
@@ -70,7 +91,7 @@ let quality: QualityId =
     : (readLocal<QualityId>(QUALITY) ?? (matchMedia('(pointer: coarse)').matches ? 'light' : 'full'));
 
 let project: Settings = { v: { ...DEFAULTS }, colors: {} };
-let state: Settings = merge(project, readLocal<Settings>(AUTOSAVE));
+let state: Settings = merge(project, migrateColors(readLocal<Settings>(AUTOSAVE)));
 
 function effective(s: Settings): Settings {
   let out = s;
@@ -97,6 +118,7 @@ const rebuildListeners = new Set<() => void>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 function emit() {
+  state = { ...state, colorSpace: 2 }; // whatever is saved from here on is in screen colours
   writeLocal(AUTOSAVE, state);
   view = effective(state);
   listeners.forEach((l) => l());
@@ -177,7 +199,7 @@ export const settings = {
     emit();
   },
   replace(next: Partial<Settings>) {
-    state = merge({ v: { ...DEFAULTS }, colors: {} }, next);
+    state = merge({ v: { ...DEFAULTS }, colors: {} }, migrateColors(next));
     emit();
   },
   resetToProject() {
@@ -193,8 +215,8 @@ export const settings = {
     try {
       const res = await fetch('/settings.json', { cache: 'no-store' });
       if (!res.ok) return;
-      project = merge({ v: { ...DEFAULTS }, colors: {} }, await res.json());
-      state = merge(project, readLocal<Settings>(AUTOSAVE));
+      project = merge({ v: { ...DEFAULTS }, colors: {} }, migrateColors(await res.json()));
+      state = merge(project, migrateColors(readLocal<Settings>(AUTOSAVE)));
       emit();
     } catch {
       /* no project defaults yet */

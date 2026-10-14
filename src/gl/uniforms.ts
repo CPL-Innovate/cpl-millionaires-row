@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { makeLotTexture } from './lots';
 import { PALETTES, type PaletteId } from '../palettes';
 import { LIVE_KEYS } from '../settings/schema';
 import { settings, type PaletteOverride } from '../settings/store';
@@ -56,11 +57,20 @@ export const U = {
   uPlateColor: { value: 0.5 },
   uEvidence: { value: 0 }, // 0 = full drawing, 1 = stripped to evidence
   uStreet: { value: 0 }, // 0 = plate (map) treatment, 1 = street drawing
+  // Atlas map: 0 = the flat 1881 plate, 1 = the oblique ink drawing (the 3D scene shown everywhere
+  // the paint hasn't reached). Lots are an id texture (gl/lots.ts); hover/selection by index.
+  uAtlas: { value: 0 },
+  uLots: { value: makeLotTexture() },
+  uLotHover: { value: -1 },
+  uLotHoverT: { value: 0 },
+  uLotSel: { value: -1 },
+  uMark: { value: new THREE.Color() },
   uRevealCenter: { value: new THREE.Vector2(0, 0) },
   uRevealRadius: { value: 0 },
   uWash: { value: [0, 1, 2, 3, 4].map(() => new THREE.Color()) },
   uFoliage: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(() => new THREE.Color()) },
   uEarth: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Color()) },
+  uCarriage: { value: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(() => new THREE.Color()) },
   uPxScale: { value: 800 }, // pixels per metre at 1 m depth (set each frame)
   uLightDir: { value: new THREE.Vector3(-0.45, 0.75, 0.5).normalize() },
   // Everett look (0 pencil, 1 watercolour, 2 texture): from → to as uLookT runs 0 → 1
@@ -82,14 +92,18 @@ settings.subscribe(applyLive);
 
 export function applyPalette(id: PaletteId, over: PaletteOverride = {}) {
   const p = PALETTES[id];
-  U.uPaper.value.set(over.paper ?? p.paper).convertSRGBToLinear();
-  U.uPencil.value.set(p.pencil).convertSRGBToLinear();
-  U.uInk.value.set(p.ink).convertSRGBToLinear();
-  U.uFaint.value.set(p.faint).convertSRGBToLinear();
+  // Color.set() reads a hex as sRGB and stores it linear (three's colour management), so the
+  // palette's hexes are exactly the colours on screen
+  U.uPaper.value.set(over.paper ?? p.paper);
+  U.uPencil.value.set(p.pencil);
+  U.uInk.value.set(p.ink);
+  U.uFaint.value.set(p.faint);
   U.uPlateColor.value = p.plateColor;
-  p.wash.forEach((c, i) => U.uWash.value[i].set(c).convertSRGBToLinear());
-  p.foliage.forEach((c, i) => U.uFoliage.value[i].set(over.foliage?.[i] ?? c).convertSRGBToLinear());
-  p.earth.forEach((c, i) => U.uEarth.value[i].set(over.earth?.[i] ?? c).convertSRGBToLinear());
+  U.uMark.value.set(p.mark);
+  p.wash.forEach((c, i) => U.uWash.value[i].set(c));
+  p.foliage.forEach((c, i) => U.uFoliage.value[i].set(over.foliage?.[i] ?? c));
+  p.earth.forEach((c, i) => U.uEarth.value[i].set(over.earth?.[i] ?? c));
+  p.carriage.forEach((c, i) => U.uCarriage.value[i].set(c));
 }
 applyPalette('graphite');
 

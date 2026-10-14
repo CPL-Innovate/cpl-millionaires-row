@@ -25,3 +25,6 @@ dist-ssr
 
 # local tooling
 .claude/
+
+# raw carriage source (FBX, textures, 23 MB point cache); scripts/bake-carriage.py → public/models/carriage.glb
+Carriage/

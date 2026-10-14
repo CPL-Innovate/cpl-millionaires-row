@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { BUILDINGS, CASE, EUCLID, euclidCentreZ, plateToWorld } from '../data/site';
 import { walkState } from '../scene/walk';
+import { traffic } from '../scene/traffic';
 import { sound, type Surface } from './engine';
 
 // Inside the Canvas: keeps the Web Audio listener on the camera, the windmill and the nearest gas
@@ -44,8 +45,16 @@ export function AudioDirector() {
       if (d < bd) { bd = d; best = l; }
     }
     sound.placeLamp(best);
-    // footsteps at a walking (or hurrying) cadence while the visitor is moving
     const t = clock.elapsedTime;
+    // a carriage ~7 s from drawing level with you: start its pass so the peak lands as it goes by
+    for (const c of traffic) {
+      const ahead = (p.x - c.x) * c.dir;
+      if (ahead > c.speed * 6.5 && ahead < c.speed * 7.5 && Math.abs(p.z - c.z) < 40 && t - c.lastPass > 20) {
+        c.lastPass = t;
+        sound.carriage(c);
+      }
+    }
+    // footsteps at a walking (or hurrying) cadence while the visitor is moving
     if (walkState.moving && t >= nextStep.current) {
       sound.step(surfaceAt(p.x, p.z), walkState.hurry);
       nextStep.current = t + (walkState.hurry ? 0.32 : 0.5) * (0.95 + Math.random() * 0.1);

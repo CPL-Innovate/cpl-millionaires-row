@@ -1,10 +1,11 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import gsap from 'gsap';
 import { World } from './scene/World';
-import { CameraRig, type Mode } from './scene/CameraRig';
+import { CameraRig, type MapStyle, type Mode } from './scene/CameraRig';
+import { AtlasPicker } from './scene/AtlasPicker';
 import { BeatPins, PhotoGhost, PlateLabels } from './scene/Overlays';
-import { BEATS, BUILDINGS, STATIONS, type Station } from './data/site';
+import { BEATS, BUILDINGS, LOTS, STATIONS, type Station } from './data/site';
 import { PALETTES, type PaletteId } from './palettes';
 import { U, applyPalette } from './gl/uniforms';
 import { settings, useEra, useQuality, useSettings } from './settings/store';
@@ -36,6 +37,7 @@ const initialEvidence = Math.min(1, Math.max(0, Number(params.get('evidence') ??
 const initialLook = Math.max(0, LOOKS.findIndex((l) => l.id === params.get('look')));
 U.uLookFrom.value = U.uLookTo.value = initialLook;
 U.uLookLines.value = LOOKS[initialLook].lines;
+const initialMapStyle: MapStyle = params.get('map') === 'plate' ? 'plate' : 'atlas'; // ?map=plate opens on the flat plate
 const initialStation = STATIONS.some((s) => s.id === params.get('station')) ? params.get('station')! : null;
 settings.loadProject();
 
@@ -48,6 +50,9 @@ const readVolume = (): { sound: number; music: number } => {
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('map');
+  const [mapStyle, setMapStyle] = useState<MapStyle>(initialMapStyle);
+  const [hoverLot, setHoverLot] = useState(-1);
+  const [selLot, setSelLot] = useState(-1);
   const [palette, setPalette] = useState<PaletteId>(initialPalette);
   const [evidence, setEvidence] = useState(initialEvidence);
   const [look, setLook] = useState<LookId>(LOOKS[initialLook].id);
@@ -76,6 +81,7 @@ export default function App() {
     r.setProperty('--muted', ui.muted);
     r.setProperty('--rule', ui.rule);
     r.setProperty('--accent', ui.accent);
+    r.setProperty('--mark', PALETTES[palette].mark);
     r.setProperty('--paper', paper);
   }, [palette, over, paper]);
 
@@ -152,6 +158,28 @@ export default function App() {
   }, [mode, arrived, beat, soundOn]);
   const building = useMemo(() => BUILDINGS.find((b) => stationId.startsWith(b.id.split('-')[0])), [stationId]);
 
+  // Atlas lots: hover hatches the lot in (a quick fade), a pick selects and flies to it, a second
+  // pick on a selected lot with a street view walks down into it
+  useEffect(() => {
+    if (hoverLot >= 0) {
+      U.uLotHover.value = hoverLot;
+      gsap.fromTo(U.uLotHoverT, { value: 0 }, { value: 1, duration: 0.35, ease: 'power1.out' });
+    } else gsap.to(U.uLotHoverT, { value: 0, duration: 0.25 });
+  }, [hoverLot]);
+  useEffect(() => { U.uLotSel.value = selLot; }, [selLot]);
+  useEffect(() => { if (mode !== 'map' || mapStyle !== 'atlas') { setSelLot(-1); setHoverLot(-1); } }, [mode, mapStyle]);
+  const atlasOn = mode === 'map' && mapStyle === 'atlas';
+  const onHoverLot = useCallback((i: number) => setHoverLot(i), []);
+  const pickLot = (i: number) => {
+    const st = LOTS[i].station;
+    if (i === selLot && st) goStation(st);
+    else { setSelLot(i); sound.ui('paper'); }
+  };
+  const pickRef = useRef(pickLot);
+  pickRef.current = pickLot;
+  const onPickLot = useCallback((i: number) => pickRef.current(i), []);
+  const shownLot = hoverLot >= 0 ? hoverLot : selLot;
+
   const goStation = (id: string) => {
     setArrived(null);
     setPhoto(0);
@@ -169,18 +197,19 @@ export default function App() {
   };
 
   return (
-    <div className={`app ${mode}`}>
+    <div className={`app ${mode}${atlasOn ? ' atlas' : ''}`}>
       <Canvas flat dpr={QUALITIES.find((q) => q.id === quality)!.dpr} camera={{ fov: 50, near: 0.3, far: 2000, position: [-40, 440, 120] }} gl={{ antialias: true, preserveDrawingBuffer: import.meta.env.DEV }}>
         <color attach="background" args={[paper]} />
         <Suspense fallback={null}>
           <World />
-          <PlateLabels onPick={goStation} show={mode === 'map'} />
+          <PlateLabels onPick={goStation} show={mode === 'map' && mapStyle === 'plate'} />
           <BeatPins onPick={(id) => setBeat(beat === id ? null : id)} active={beat} show={mode === 'street'} />
         </Suspense>
         <Suspense fallback={null}>
           {atStation && station.photo && <PhotoGhost station={station} opacity={photo} />}
         </Suspense>
-        <CameraRig mode={mode} stationId={stationId} onArrive={onArrive} />
+        <CameraRig mode={mode} mapStyle={mapStyle} focusLot={selLot} stationId={stationId} onArrive={onArrive} />
+        <AtlasPicker active={atlasOn} onHover={onHoverLot} onPick={onPickLot} />
         {fps && <PerfProbe />}
         <AudioDirector />
       </Canvas>
@@ -296,7 +325,8 @@ export default function App() {
       {fps && <div id="perf-hud" className="perf-hud" />}
 
       <nav className="stations">
-        <button className={`mode ${mode === 'map' ? 'on' : ''}`} onClick={() => setMode('map')}>1881 plate</button>
+        <button className={`mode ${mode === 'map' && mapStyle === 'atlas' ? 'on' : ''}`} onClick={() => { setMapStyle('atlas'); setMode('map'); }}>Atlas</button>
+        <button className={`mode ${mode === 'map' && mapStyle === 'plate' ? 'on' : ''}`} onClick={() => { setMapStyle('plate'); setMode('map'); }}>1881 plate</button>
         {STATIONS.map((s) => (
           <button key={s.id} className={mode === 'street' && stationId === s.id ? 'on' : ''} onClick={() => goStation(s.id)}>
             {s.title}
@@ -344,8 +374,33 @@ export default function App() {
         </article>
       )}
 
+      {atlasOn && (
+        <>
+          <div className={`atlas-title ${shownLot >= 0 ? 'on' : ''}`} aria-live="polite">
+            {shownLot >= 0 && (
+              <>
+                <small>{LOTS[shownLot].owner}</small>
+                <h2>{LOTS[shownLot].name}</h2>
+                {shownLot === selLot && LOTS[selLot].station && (
+                  <button onClick={() => goStation(LOTS[selLot].station!)}>Walk the street</button>
+                )}
+              </>
+            )}
+          </div>
+          <ol className="lots" onMouseLeave={() => setHoverLot(-1)}>
+            {LOTS.map((l, i) => (
+              <li key={l.id}>
+                <button className={i === selLot ? 'on' : i === hoverLot ? 'hover' : ''} onMouseEnter={() => setHoverLot(i)} onFocus={() => setHoverLot(i)} onClick={() => pickLot(i)}>
+                  <sup>{i + 1}</sup>{l.name}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+
       <footer className="foot">
-        {mode === 'street' ? 'Drag to look · WASD / arrows to walk · shift to hurry · numbered pins are story beats' : 'Drag to pan · scroll to zoom · pick a house or a station to descend'}
+        {mode === 'street' ? 'Drag to look · WASD / arrows to walk · shift to hurry · numbered pins are story beats' : (mapStyle === 'atlas' ? 'Drag to fly · right-drag to turn · scroll to zoom · pick a lot, pick it again to walk down' : 'Drag to pan · scroll to zoom · pick a house or a station to descend')}
         <span>
           Demo. Positions read off 1881 Hopkins Plates 3 + 5 (±5 m). Everett, Stager–Beckwith, Rockefeller and Wade Sr. are image-to-3D spikes, not reconstructions; the rest are massing blocks. Images: Cleveland Public Library Digital Gallery.
         </span>

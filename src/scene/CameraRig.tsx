@@ -6,12 +6,20 @@ import type { MapControls as MapControlsImpl } from 'three-stdlib';
 import gsap from 'gsap';
 import { walkState } from './walk';
 import { STATIONS, type Station } from '../data/site';
+import { lotCentre } from '../gl/lots';
 import { U } from '../gl/uniforms';
 
 export type Mode = 'map' | 'street';
+export type MapStyle = 'atlas' | 'plate';
 
-const MAP_POS = new THREE.Vector3(-40, 440, 120);
-const MAP_TARGET = new THREE.Vector3(-40, 0, -10);
+// the flat plate is read from nearly overhead; the Atlas is a bird's-eye from the south-south-west,
+// low enough to see walls and crowns, like an engraved view
+const FRAMES: Record<MapStyle, { pos: THREE.Vector3; target: THREE.Vector3 }> = {
+  plate: { pos: new THREE.Vector3(-40, 440, 120), target: new THREE.Vector3(-40, 0, -10) },
+  atlas: { pos: new THREE.Vector3(-95, 175, 225), target: new THREE.Vector3(-30, 0, -25) },
+};
+// where the Atlas can be panned to (the plate's built-up middle)
+const PAN = { x0: -240, x1: 150, z0: -170, z1: 150 };
 const EYE = 1.7;
 
 function yawPitchTo(from: THREE.Vector3, to: THREE.Vector3) {
@@ -23,27 +31,62 @@ function yawPitchTo(from: THREE.Vector3, to: THREE.Vector3) {
 
 interface Props {
   mode: Mode;
+  mapStyle: MapStyle;
+  focusLot: number; // Atlas: fly to this lot (−1: none)
   stationId: string;
   onArrive: (s: Station) => void;
 }
 
-export function CameraRig({ mode, stationId, onArrive }: Props) {
+export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Props) {
   const { camera, gl } = useThree();
   const controls = useRef<MapControlsImpl>(null);
   const look = useRef({ yaw: 0, pitch: 0 });
   const tweening = useRef(false);
   const keys = useRef<Record<string, boolean>>({});
   const prevMode = useRef<Mode>('map');
-  const lookTarget = useMemo(() => MAP_TARGET.clone(), []);
+  const lookTarget = useMemo(() => FRAMES[mapStyle].target.clone(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const mapTarget = useMemo(() => FRAMES[mapStyle].target.clone(), []); // eslint-disable-line react-hooks/exhaustive-deps
   // MapControls calls update() every frame even when disabled (it re-aims the camera at its
   // target), so it only exists while we are actually on the plate.
   const [mapControls, setMapControls] = useState(true);
 
   // initial map framing
   useEffect(() => {
-    camera.position.copy(MAP_POS);
-    camera.lookAt(MAP_TARGET);
+    camera.position.copy(FRAMES[mapStyle].pos);
+    camera.lookAt(FRAMES[mapStyle].target);
+    U.uAtlas.value = mapStyle === 'atlas' ? 1 : 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera]);
+
+  // on the map, switching style glides between the two framings and blotches the drawing in/out
+  const prevStyle = useRef(mapStyle);
+  useEffect(() => {
+    if (prevStyle.current === mapStyle) return;
+    prevStyle.current = mapStyle;
+    if (mode !== 'map') return;
+    const f = FRAMES[mapStyle];
+    const tgt = controls.current?.target ?? mapTarget;
+    const tl = gsap.timeline();
+    tl.to(camera.position, { x: f.pos.x, y: f.pos.y, z: f.pos.z, duration: 1.8, ease: 'power2.inOut' }, 0)
+      .to(tgt, { x: f.target.x, y: f.target.y, z: f.target.z, duration: 1.8, ease: 'power2.inOut', onUpdate: () => controls.current?.update() }, 0)
+      .to(U.uAtlas, { value: mapStyle === 'atlas' ? 1 : 0, duration: 1.4, ease: 'power1.inOut' }, mapStyle === 'atlas' ? 0.5 : 0);
+    return () => { tl.kill(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapStyle]);
+
+  // Atlas: fly to a lot, keeping the current bearing, a little closer in
+  useEffect(() => {
+    if (focusLot < 0 || mode !== 'map' || mapStyle !== 'atlas' || !controls.current) return;
+    const [x, z] = lotCentre(focusLot);
+    const c = controls.current;
+    const off = camera.position.clone().sub(c.target);
+    off.setLength(THREE.MathUtils.clamp(off.length(), 150, 230));
+    const tl = gsap.timeline({ onUpdate: () => c.update() });
+    tl.to(c.target, { x, y: 0, z, duration: 1.6, ease: 'power2.inOut' }, 0)
+      .to(camera.position, { x: x + off.x, y: off.y, z: z + off.z, duration: 1.6, ease: 'power2.inOut' }, 0);
+    return () => { tl.kill(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusLot]);
 
   // drag-to-look + WASD in street mode
   useEffect(() => {
@@ -92,7 +135,7 @@ export function CameraRig({ mode, stationId, onArrive }: Props) {
         U.uStreet.value = 1;
         // swoop down over the plate, keep looking at the target, then hand over to the walker
         const mid = new THREE.Vector3().lerpVectors(camera.position, to, 0.55).setY(90);
-        lookTarget.copy(controls.current?.target ?? MAP_TARGET);
+        lookTarget.copy(controls.current?.target ?? mapTarget);
         camera.lookAt(lookTarget);
         tl.to(camera.position, { x: mid.x, y: mid.y, z: mid.z, duration: 1.6, ease: 'power2.inOut' })
           .to(lookTarget, { x: tgt.x, y: tgt.y, z: tgt.z, duration: 3.0, ease: 'power2.inOut' }, 0)
@@ -120,6 +163,7 @@ export function CameraRig({ mode, stationId, onArrive }: Props) {
       }
       // arrive when the camera lands; the drawing keeps spreading outward behind us
       tl.call(() => {
+        gsap.to(U.uAtlas, { value: 0, duration: 1.2, ease: 'power1.in' }); // the paint has the street now
         look.current = { ...end };
         camera.rotation.set(end.pitch, end.yaw, 0, 'YXZ');
         tweening.current = false;
@@ -129,9 +173,12 @@ export function CameraRig({ mode, stationId, onArrive }: Props) {
       // back to the plate: the drawing un-draws toward the camera, then we lift off
       U.uRevealCenter.value.set(camera.position.x, camera.position.z);
       lookTarget.copy(camera.position).add(new THREE.Vector3(0, 0, -10).applyEuler(camera.rotation));
+      const f = FRAMES[mapStyle];
+      mapTarget.copy(f.target);
       tl.to(U.uRevealRadius, { value: 0, duration: 1.8, ease: 'power2.in' })
-        .to(camera.position, { x: MAP_POS.x, y: MAP_POS.y, z: MAP_POS.z, duration: 2.2, ease: 'power2.inOut' }, 0.6)
-        .to(lookTarget, { x: MAP_TARGET.x, y: MAP_TARGET.y, z: MAP_TARGET.z, duration: 2.2, ease: 'power2.inOut' }, 0.6)
+        .to(U.uAtlas, { value: mapStyle === 'atlas' ? 1 : 0, duration: 1.2, ease: 'power1.inOut' }, 0)
+        .to(camera.position, { x: f.pos.x, y: f.pos.y, z: f.pos.z, duration: 2.2, ease: 'power2.inOut' }, 0.6)
+        .to(lookTarget, { x: f.target.x, y: f.target.y, z: f.target.z, duration: 2.2, ease: 'power2.inOut' }, 0.6)
         .set(U.uStreet, { value: 0 });
       tl.eventCallback('onUpdate', () => camera.lookAt(lookTarget));
       tl.eventCallback('onComplete', () => {
@@ -163,14 +210,31 @@ export function CameraRig({ mode, stationId, onArrive }: Props) {
   });
 
   if (!(mapControls && mode === 'map')) return null;
+  if (mapStyle === 'plate')
+    return <MapControls key="plate" ref={controls} target={mapTarget} enableRotate={false} minDistance={140} maxDistance={720} screenSpacePanning={false} />;
   return (
     <MapControls
+      key="atlas"
       ref={controls}
-      target={MAP_TARGET}
-      enableRotate={false}
-      minDistance={140}
-      maxDistance={720}
+      target={mapTarget}
+      enableDamping
+      dampingFactor={0.08}
+      minDistance={80}
+      maxDistance={520}
+      minPolarAngle={0.6}
+      maxPolarAngle={1.2}
+      minAzimuthAngle={-1.1}
+      maxAzimuthAngle={0.6}
       screenSpacePanning={false}
+      onChange={() => {
+        const t = controls.current?.target;
+        if (!t) return;
+        const cx = THREE.MathUtils.clamp(t.x, PAN.x0, PAN.x1), cz = THREE.MathUtils.clamp(t.z, PAN.z0, PAN.z1);
+        if (cx !== t.x || cz !== t.z) {
+          camera.position.x += cx - t.x; camera.position.z += cz - t.z;
+          t.x = cx; t.z = cz;
+        }
+      }}
     />
   );
 }

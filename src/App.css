@@ -169,3 +169,39 @@ input[type='range'] { width: 100%; accent-color: var(--accent); margin: 2px 0; }
 .gen-house { display: flex; gap: 6px; margin: 4px 0 8px; }
 .gen-house select { flex: 1; min-width: 0; font: inherit; font-size: 13px; }
 .gen-house button { font-size: 12.5px; white-space: nowrap; }
+
+/* Atlas: the lot's name set large and widely spaced over the drawing, owner in small caps above */
+.atlas-title {
+  position: absolute; z-index: 20; left: 50%; top: 36%; transform: translate(-50%, -50%);
+  text-align: center; pointer-events: none; opacity: 0; transition: opacity 0.35s ease;
+  width: max-content; max-width: calc(100vw - 340px); margin-left: -140px; /* centred in the space left of the panel */
+}
+.atlas-title.on { opacity: 1; }
+.atlas-title small {
+  display: block; font-family: var(--display); font-size: 17px; letter-spacing: 0.32em; text-transform: uppercase;
+  color: var(--fg); text-shadow: 0 0 10px var(--paper), 0 0 3px var(--paper);
+}
+.atlas-title h2 {
+  margin: 6px 0 0; font-family: var(--display); font-weight: 400; font-size: clamp(32px, 5vw, 74px);
+  letter-spacing: 0.2em; text-transform: uppercase; line-height: 1; color: var(--fg);
+  text-shadow: 0 0 18px var(--paper), 0 0 6px var(--paper);
+}
+.atlas-title button {
+  pointer-events: auto; margin-top: 14px; background: var(--bg); border: 1px solid var(--fg);
+  padding: 5px 14px; font-style: italic; font-size: 15px;
+}
+.atlas-title button:hover { background: var(--fg); color: var(--paper); }
+
+/* the lot strip: a hairline across the page, numbered lots west → east */
+.lots {
+  position: absolute; z-index: 25; left: 24px; right: 300px; bottom: 10px; margin: 0; padding: 6px 0 0;
+  list-style: none; display: flex; justify-content: space-between; gap: 6px; border-top: 1px solid var(--rule);
+}
+.lots button { background: none; border: 0; padding: 2px 0; font-size: 16px; color: var(--muted); white-space: nowrap; transition: color 0.2s; }
+.lots sup { font-size: 10px; margin-right: 4px; vertical-align: 0.7em; }
+.lots button:hover, .lots button.hover, .lots button.on { color: var(--mark); }
+@media (max-width: 900px) { .lots { right: 24px; overflow-x: auto; justify-content: flex-start; gap: 18px; } }
+
+/* in the Atlas the lot strip takes the bottom edge; the stations and the footer step up */
+.app.atlas .stations { bottom: 78px; }
+.app.atlas .foot { bottom: 38px; }

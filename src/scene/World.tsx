@@ -6,6 +6,9 @@ import { BUILDINGS, PLATE, STATIONS, plateToWorld, euclidCentreZ, EUCLID, type B
 import { makeDabMaterial, makeGroundMaterial, makeLineMaterial, makeSurfaceMaterial, setWash } from '../gl/materials';
 import { elm, massing, treeParams, windmillRotor, windmillTower } from '../gl/geometry';
 import { U } from '../gl/uniforms';
+import { dabGeo, rand } from './dabs';
+import { Carriages } from './Carriages';
+import { AtlasTrees } from './AtlasTrees';
 import { useRebuild, useSettings } from '../settings/store';
 import { washDefaultsFor } from '../settings/schema';
 
@@ -16,28 +19,6 @@ function edgesOf(geo: THREE.BufferGeometry, angle = 25) {
   const l = new THREE.LineSegments(e);
   l.computeLineDistances();
   return l.geometry;
-}
-
-// dab buffers are flat arrays of [x, y, z, size(m), tint(0–4 along the wash ramp), seed]
-function dabGeo(arr: number[]) {
-  const n = arr.length / 6;
-  const pos = new Float32Array(n * 3), size = new Float32Array(n), tint = new Float32Array(n), seed = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    pos[i * 3] = arr[i * 6]; pos[i * 3 + 1] = arr[i * 6 + 1]; pos[i * 3 + 2] = arr[i * 6 + 2];
-    size[i] = arr[i * 6 + 3]; tint[i] = arr[i * 6 + 4]; seed[i] = arr[i * 6 + 5];
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
-  g.setAttribute('aTint', new THREE.BufferAttribute(tint, 1));
-  g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
-  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5); // never frustum-cull the wash
-  return g;
-}
-
-function rand(seed: number) {
-  let s = seed >>> 0;
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 }
 
 function Ground() {
@@ -255,7 +236,7 @@ function boxDots(out: number[], cx: number, cz: number, w: number, h: number, d:
 // elms on both tree lawns, fences on the lot lines, gas lamps at the curb
 function StreetKit() {
   const g = useRebuild();
-  const { crowns, wood, iron, glow, stone } = useMemo(() => {
+  const { crowns, wood, iron, glow, stone, atlasTrees } = useMemo(() => {
     const r = rand(g.seed);
     const gen = {
       vase: g.vase, round: g.round, column: g.column, young: g.young, old: g.old,
@@ -263,6 +244,7 @@ function StreetKit() {
     };
     const woodArr: number[] = [];
     const crownArr: number[] = [];
+    const atlasArr: number[] = []; // per tree for the Atlas: crown x, z, bottom, top, radius, seed, autumn
     const fenceArr: number[] = [];
     const lampArr: number[] = [];
     const piers: [number, number][] = [];
@@ -301,6 +283,12 @@ function StreetKit() {
       cy += 1.5;
       let span = 0;
       for (const [ax, ay, az] of anchors) span = Math.max(span, Math.hypot(ax - cx, (ay - cy) * 1.4, az - cz));
+      {
+        // the crown's outline for the Atlas's one-shape trees (no random draws: the dots don't change)
+        let rH = 0, y0 = Infinity, y1 = -Infinity;
+        for (const [ax, ay, az] of anchors) { rH = Math.max(rH, Math.hypot(ax - cx, az - cz)); y0 = Math.min(y0, ay); y1 = Math.max(y1, ay); }
+        atlasArr.push(cx, cz, y0 - 0.6, y1 + 1.2, rH + 1.1, (seed % 997) / 997, autumn);
+      }
       for (const [ax, ay, az, depth] of anchors) {
         const n = Math.round((depth === 0 ? 4 : depth === 1 ? 3 : 2) * Math.max(1, density));
         for (let j = 0; j < n; j++) {
@@ -411,6 +399,7 @@ function StreetKit() {
     for (const [x, z] of piers) boxDots(stoneArr, x, z, 1.1, 2.6, 1.1, r);
     return {
       crowns: dabGeo(crownArr),
+      atlasTrees: atlasArr,
       wood: dabGeo(woodArr),
       iron: dabGeo(ironArr),
       glow: dabGeo(glowArr),
@@ -426,6 +415,7 @@ function StreetKit() {
     <group>
       <points geometry={wood} material={woodMat} renderOrder={2} />
       <points geometry={crowns} material={crownMat} renderOrder={2} />
+      <AtlasTrees data={atlasTrees} />
       <points geometry={iron} material={kitMat} renderOrder={2} />
       <points geometry={glow} material={kitMat} renderOrder={2} />
       <points geometry={stone} material={kitMat} renderOrder={2} />
@@ -547,6 +537,7 @@ export function World() {
       <Washes />
       <FallingLeaves />
       <Windmill />
+      <Carriages />
     </group>
   );
 }

@@ -384,3 +384,30 @@ export const BEATS: Beat[] = [
     position: [-207, 28, -132],
   },
 ];
+
+// Lots for the Atlas map, traced off the 1881 plate composite (plate px, ±3 px on the lines). The
+// north-side lots run on past the plate's top edge; they're cut at Everett's rear line (y 205) so
+// the selectors stay a readable size. Listed west → east, north side first. `owner`
+// is the 1881 plate's name; `building` and `station` link a lot to what the street view has.
+export interface Lot {
+  id: string;
+  name: string;
+  owner: string;
+  poly: [number, number][];
+  building?: string;
+  station?: string;
+}
+
+const rect = (x0: number, y0: number, x1: number, y1: number): [number, number][] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+
+export const LOTS: Lot[] = [
+  { id: 'flagler', name: 'Flagler', owner: 'H. Flagler · later C. F. Brush', poly: rect(441, 205, 576, 662), building: 'brush', station: 'brush' },
+  { id: 'beckwith', name: 'Beckwith', owner: 'Beckwith estate', poly: rect(576, 205, 750, 662), building: 'stager-beckwith', station: 'stager' },
+  { id: 'rp-wade', name: 'R. P. Wade', owner: 'Mrs. R. P. Wade', poly: rect(750, 205, 856, 662), building: 'wade-randall', station: 'wade' },
+  { id: 'jh-wade', name: 'J. H. Wade', owner: 'Jeptha H. Wade', poly: rect(856, 205, 977, 662), building: 'wade-sr', station: 'wade' },
+  { id: 'atwood', name: 'Everett', owner: 'C. C. Atwood · later S. T. Everett', poly: rect(1022, 205, 1130, 662), building: 'everett', station: 'everett' },
+  { id: 'leek', name: 'Leek', owner: 'T. W. Leek', poly: rect(728, 735, 798, 1040) },
+  { id: 'rockefeller', name: 'Rockefeller', owner: 'L. C. Rockefeller', poly: rect(798, 735, 887, 1040), building: 'rockefeller', station: 'rockefeller' },
+  { id: 'lot-69', name: 'Lot 69', owner: 'unbuilt in 1881', poly: rect(887, 735, 977, 1040) },
+  { id: 'st-pauls', name: 'St. Paul’s', owner: 'Parish of St. Paul’s', poly: rect(1022, 735, 1102, 885), building: 'st-pauls', station: 'st-pauls' },
+];
