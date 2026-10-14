@@ -45,7 +45,9 @@ npm run build    # type-check + production build into dist/
   engraving and looking east along Euclid, so the avenue runs up the middle of the screen (west at
   the bottom, north on the left). The plate's linework is inked on bare paper. Each tree is a small
   paper crown seen from above (a lopsided, scalloped ink outline that varies tree to tree) over a
-  soft grey shadow pool (`AtlasTrees`), and the houses are in pencil. Euclid's and E. 40th's (Case
+  soft grey shadow pool (`AtlasTrees`), and the houses are in pencil. The carriages are ink
+  outlines on paper (coach, driver's hat, turning wheels, pole and the pair from above), drawn in
+  screen-space ribbons 0.8–2 px wide so they stay legible at every zoom; their dots step aside. Euclid's and E. 40th's (Case
   Avenue's) curbs draw out from the corner, and their names write themselves onto the roadway each
   time the Atlas comes up. Hover a lot and it hatches in red with its name set large; click to
   select it and fly there; click again (or "Walk the street") to descend, and the paint takes over
@@ -68,7 +70,7 @@ npm run build    # type-check + production build into dist/
   of that autumn shows bare-branched elms, so the crowns are near-bare and turned, the lawns mown
   and leaf-strewn, with no pink or lavender flecks. 1888 is a layer over Painterly
   (`ERA_1888` in `settings/schema.ts`), and the Generator edits whichever one is showing.
-- **Modelled house looks** (Everett, Stager-Beckwith, Rockefeller and Wade Sr.; massing blocks stay pencil):
+- **Modelled house looks** (all seven modelled houses; any massing blocks stay pencil):
   - **Pencil:** the drawing described above.
   - **Watercolour:** the model's texture, painted. It keeps the texture's detail and values, pulls
     the colour toward the palette's earths, lays washes with wet edges, leaves paper white where
@@ -137,7 +139,8 @@ src/
   scene/Overlays.tsx    Photo ghosts, story pins, map labels
   scene/walk.ts         Walking state shared with the audio
   scene/Carriages.tsx   Carriages on Euclid: dots scattered over the slim rig, wheels spun, horse
-                        dots blended between 16 stride keys each frame (scene/traffic.ts → audio)
+                        dots blended between 16 stride keys each frame (scene/traffic.ts → audio);
+                        in the Atlas, an ink outline instead (makeAtlasCarriage*Material)
   audio/engine.ts       Web Audio: ambience beds, positional sounds, footsteps, beats, music, mix
   audio/AudioDirector.tsx  Listener on the camera, windmill/lamp placement, footsteps by surface
   settings/             Generator schema + store (eras, quality, per-house watercolour, autosave,
@@ -200,13 +203,26 @@ public/
 - Building positions are read off the georeferenced plates by eye, accurate to about ±5 m. The
   plates themselves disagree slightly (Case meets Euclid at about 93° on Plate 3 and 88° on
   Plate 5); the affine fit absorbs that.
-- Four houses are image-to-3D spikes, not reconstructions: Everett (A1, provisional score
-  50–54/100), Stager-Beckwith (S1), Rockefeller (R1) and Wade Sr. (W1), the last three unscored.
-  Each came from a GPT-cleaned photo through Tripo and was slimmed to about 85k triangles. The other
-  houses are typology-level massing blocks (inferred).
+- All seven houses are image-to-3D spikes, not reconstructions: Everett (A1, provisional score
+  50–54/100), Stager-Beckwith (S1), Rockefeller (R1), Wade Sr. (W1), Randall Wade (RW1), St. Paul's
+  (P1) and Brush (B1), all but Everett unscored. Each came from a GPT-cleaned photo through Tripo
+  and was slimmed to about 85k triangles. The massing-block code remains for any house without a
+  model.
   - **Scale comes from the footprint**, since the models have none: the photographed front's width
-    against the 1912 Sanborn (Stager-Beckwith, Rockefeller) or the 1881 plate (Wade Sr.). Height
-    is the check: Stager-Beckwith's mansard lands at 11.2 m against Sanborn's 38 ft.
+    against the 1912 Sanborn (Stager-Beckwith, Rockefeller, Randall Wade, St. Paul's, Brush) or the
+    1881 plate (Wade Sr.). Height is the check: Stager-Beckwith's mansard lands at 11.2 m against
+    Sanborn's 38 ft; St. Paul's tower at 23.8 m against its 75 ft and its eaves at 7.2 m against 24 ft.
+    The Sanborns are tied to the scene through the Euclid and E. 40th lot lines (checked on
+    Stager-Beckwith, within ~4 m).
+  - Like W1, the new models fall short of the plates' depth: Randall Wade ~55% of its main block,
+    St. Paul's ~75%, Brush ~65%. Randall's cornice matches its twin Wade Sr.'s eaves to half a
+    metre; Tripo mirrored its west wing onto the east end, which is tagged invented.
+  - St. Paul's ¾ view was laid out flat into one front (Euclid gable, tower, E. 40th range). The
+    church survives, so its sides are invented *in this model*, not unknown.
+  - Brush is a placeholder from a 600-px book halftone: all its carving is GPT's. Fitting its
+    whole width to the footprint would make it too low, so the scale fits the two-gabled front
+    block and the model runs ~5 m wider than the footprint. Sanborn 96 put it ~17 m west of the
+    old massing guess.
   - Per-face provenance comes from an object-space heuristic (`MeshProvenance` in
     `src/data/site.ts`): roof, front, each side and rear, plus cut-offs where the evidence stops.
     It is not a per-face ledger.
@@ -226,36 +242,41 @@ public/
 - The environment (planting, lawns, colours) is an impression, not evidence. The current default
   look is painterly, not historically calibrated (see Next steps).
 - Performance: on an Apple M2 Pro at 2× pixel density, Full holds the display's 120 fps cap
-  (8.4 ms a frame, 95th percentile 10 ms) with about 1.5M points, 60% of them bark. Light draws
+  (8.3 ms a frame, 95th percentile 9.3–9.4 ms) with about 1.6M points and seven ~85k-triangle
+  houses (up to 512k triangles on screen in the Atlas). Uncapped, the three newest houses took
+  frames from 5.0 to 5.8 ms in the Atlas and 3.8 to 5.1 ms at St. Paul's. Light draws
   about 880k points at 1× and is the default on touch devices. Phones and Quest headsets are
   still unmeasured.
 
 ## Next steps (pinned)
 
-Where things stand (2026-10-14): four modelled houses (Everett, Stager-Beckwith, Rockefeller,
-Wade Sr.) in Pencil / Watercolour / Texture with per-house watercolour tuning (Everett and
+Where things stand (2026-10-14): seven modelled houses (Everett, Stager-Beckwith, Rockefeller,
+Wade Sr., Randall Wade, St. Paul's, Brush) in Pencil / Watercolour / Texture with per-house watercolour tuning (Everett and
 Rockefeller tuned and saved in `public/settings.json`); Painterly default with an 1888 toggle; the
-Atlas as the default map, beside the flat 1881 plate; four dot-painted carriages on Euclid; three
+Atlas as the default map, beside the flat 1881 plate; four dot-painted carriages on Euclid (ink
+outlines in the Atlas); three
 station cameras registered to their photographs; gathering dots and developing photos; frame-rate
 readout and a Light setting; generated sound and music with volume sliders. In priority order:
 
 1. **The Atlas, past the prototype:** trace the rest of the plate's lots; ink shields for the
    station and story pins; a compact station bar in the Atlas (it covers the foreground); turn the
    lot strip to match the east-facing view; check Sepia, Cyanotype and 1888 in the Atlas.
-2. **Tune and review the remaining two houses' watercolour** (Stager-Beckwith, Wade Sr.), then
-   Save as project default. Wade Sr.'s roof can't be found by colour (its walls and roof are
+2. **Tune and review the remaining houses' watercolour** (Stager-Beckwith, Wade Sr., and the new
+   Randall Wade, St. Paul's and Brush, which run on the defaults), then Save as project default. Wade Sr.'s roof can't be found by colour (its walls and roof are
    both neutral), so its roof settings do little.
 3. **Check the new spikes before anyone scores them:** Wade Sr. against the IoA ch04-48
    lithograph (the façade break; the rear wing is ~15 m short); a crop-first re-run for
-   Rockefeller; confirm the source and rights of the Stager-Beckwith lawn stereoview.
+   Rockefeller; confirm the source and rights of the Stager-Beckwith lawn stereoview. Re-run Brush
+   from the CPL print (it is a placeholder); a photographed multi-view run for St. Paul's, which
+   still stands; settle the Brush lot against the Worthington question in brush.md.
 4. **A "Provenance" look** that picks the treatment per face: texture where photographed,
    watercolour where inferred, pencil where invented.
-5. **The massing blocks:** contact dots, pencil window grids, string courses and cornices (marked
-   inferred), an optional inferred-colour wash.
+5. **Massing-block linework** (if more houses join without a model): contact dots, pencil window
+   grids, string courses and cornices (marked inferred), an optional inferred-colour wash.
 6. **The fSpy control pass** for photos 62/63/59/65: true camera solves (Everett, Wade and
    Stager-Beckwith are silhouette-registered for now) and a replacement for the facing-direction
    provenance heuristic.
-7. **Measure on a phone** (Full now draws ~1.5M points plus four ~85k-triangle meshes).
+7. **Measure on a phone** (Full now draws ~1.6M points plus seven ~85k-triangle meshes).
 8. **A listening pass** on the 32 sounds and two music pieces; regenerate the sound effects on the
    paid ElevenLabs account before any public build (they were made on a free account). The
    carriage takes trot while the horses walk: a walking take would match.
@@ -265,7 +286,8 @@ readout and a Light setting; generated sound and music with volume sliders. In p
 Done since the first spike: Painterly / 1888, gathering dots and developing photos, frame rate and
 Light, sound and music, the plate seam and registration, three more houses, the looks for every
 modelled house; then (2026-10-13/14) carriages on Euclid, the Atlas map, the colour-pipeline fix
-(palette hexes are now the colours on screen), and photo-registered cameras for three stations.
+(palette hexes are now the colours on screen), photo-registered cameras for three stations, ink
+carriages in the Atlas, and Randall Wade, St. Paul's and Brush as models.
 
 ## Dev-only helpers
 
