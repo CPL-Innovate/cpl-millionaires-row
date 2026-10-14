@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { PALETTES, type PaletteId } from '../palettes';
-import { COLOR_RAMPS, ERAS, GROUPS, type ParamDef } from '../settings/schema';
+import { COLOR_RAMPS, ERAS, GROUPS, WASH_PARAMS, washDefaultsFor, type ParamDef } from '../settings/schema';
+import { BUILDINGS } from '../data/site';
 import { settings, useEra, useSettings, type Settings } from '../settings/store';
 
 const fmt = (p: ParamDef, v: number) => (p.step >= 1 ? Math.round(v).toLocaleString() : v.toFixed(p.step < 0.01 ? 3 : 2));
 
-function Row({ p, value }: { p: ParamDef; value: number }) {
+function Row({ p, value, onChange = (v) => settings.set(p.key, v) }: { p: ParamDef; value: number; onChange?: (v: number) => void }) {
   return (
     <label className="gen-row" title={p.hint}>
       <span className="gen-label">
@@ -13,12 +14,50 @@ function Row({ p, value }: { p: ParamDef; value: number }) {
         {!p.live && <i className="gen-rebuild" title="Regenerates geometry">↻</i>}
       </span>
       <span className="gen-value">{fmt(p, value)}</span>
-      <input type="range" min={p.min} max={p.max} step={p.step} value={value} onChange={(e) => settings.set(p.key, +e.target.value)} />
+      <input type="range" min={p.min} max={p.max} step={p.step} value={value} onChange={(e) => onChange(+e.target.value)} />
     </label>
   );
 }
 
-export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClose: () => void }) {
+// the modelled houses that can be painted
+const HOUSES = BUILDINGS.filter((b) => b.model?.looks);
+
+function WashGroup({ initial, watercolour, onShowWatercolour }: { initial: string | null; watercolour: boolean; onShowWatercolour: () => void }) {
+  const s = useSettings();
+  const [id, setId] = useState(initial && HOUSES.some((h) => h.id === initial) ? initial : HOUSES[0].id);
+  const house = HOUSES.find((h) => h.id === id)!;
+  const defaults = washDefaultsFor(house.model!.neutralWalls);
+  const values = { ...defaults, ...s.houses?.[id] };
+  return (
+    <details open>
+      <summary>Watercolour · per house</summary>
+      <div className="gen-house">
+        <select value={id} onChange={(e) => setId(e.target.value)} aria-label="House">
+          {HOUSES.map((h) => (
+            <option key={h.id} value={h.id}>{h.name}{s.houses?.[h.id] ? ' •' : ''}</option>
+          ))}
+        </select>
+        {!watercolour && <button onClick={onShowWatercolour}>Show watercolour</button>}
+      </div>
+      {WASH_PARAMS.map((p) => (
+        <Row key={p.key} p={p} value={values[p.key]} onChange={(v) => settings.setHouse(id, p.key, v)} />
+      ))}
+      <div className="gen-actions">
+        <button onClick={() => settings.copyHouse(id, HOUSES.map((h) => h.id), values)}>Copy to all houses</button>
+        <button disabled={!s.houses?.[id]} onClick={() => settings.resetHouse(id)}>Reset house</button>
+      </div>
+      <p className="note">Saved per house (• marks a tuned one) with the rest of the settings.{house.model!.neutralWalls ? ' This house starts grey: its wall material is unknown.' : ''}</p>
+    </details>
+  );
+}
+
+export function GeneratorPanel({ palette, onClose, house, watercolour, onShowWatercolour }: {
+  palette: PaletteId;
+  onClose: () => void;
+  house: string | null; // the house at the current station, picked first in the watercolour group
+  watercolour: boolean;
+  onShowWatercolour: () => void;
+}) {
   const s = useSettings();
   const era = useEra();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -69,6 +108,7 @@ export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClo
       </header>
 
       <div className="gen-body">
+        <WashGroup key={house ?? "none"} initial={house} watercolour={watercolour} onShowWatercolour={onShowWatercolour} />
         {GROUPS.map((g, i) => (
           <details key={g.id} open={i < 2}>
             <summary>{g.label}</summary>
@@ -132,7 +172,7 @@ export function GeneratorPanel({ palette, onClose }: { palette: PaletteId; onClo
           {import.meta.env.DEV && <button className="gen-primary" onClick={saveProject}>Save as project default</button>}
         </div>
         <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} />
-        <p className="note">Changes autosave in this browser and apply to the {ERAS.find((e) => e.id === era)!.label} look only. ↻ marks settings that regrow the scene.</p>
+        <p className="note">Changes autosave in this browser. Watercolour settings belong to each house; the rest apply to the {ERAS.find((e) => e.id === era)!.label} look only. ↻ marks settings that regrow the scene.</p>
       </footer>
     </aside>
   );

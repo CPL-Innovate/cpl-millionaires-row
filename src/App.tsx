@@ -304,7 +304,15 @@ export default function App() {
         ))}
       </nav>
 
-      {gen && <GeneratorPanel palette={palette} onClose={() => setGen(false)} />}
+      {gen && (
+        <GeneratorPanel
+          palette={palette}
+          onClose={() => setGen(false)}
+          house={building?.model ? building.id : null}
+          watercolour={look === 'wash'}
+          onShowWatercolour={() => setLook('wash')}
+        />
+      )}
 
       {!gen && mode === 'street' && arrived && !activeBeat && building && (
         <article className="card">

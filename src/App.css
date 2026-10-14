@@ -165,3 +165,7 @@ input[type='range'] { width: 100%; accent-color: var(--accent); margin: 2px 0; }
 .volumes.off { opacity: 0.45; }
 .vol { display: grid; grid-template-columns: 44px 1fr 34px; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .vol .pct { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+
+.gen-house { display: flex; gap: 6px; margin: 4px 0 8px; }
+.gen-house select { flex: 1; min-width: 0; font: inherit; font-size: 13px; }
+.gen-house button { font-size: 12.5px; white-space: nowrap; }

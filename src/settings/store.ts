@@ -21,6 +21,7 @@ export interface Settings {
   v: Record<string, number>;
   colors: Colors;
   eras?: Partial<Record<EraId, EraLayer>>;
+  houses?: Record<string, Record<string, number>>; // per-house watercolour settings (WASH_PARAMS)
 }
 
 const AUTOSAVE = 'mr-settings-v1';
@@ -33,6 +34,7 @@ const merge = (base: Settings, over?: Partial<Settings> | null): Settings => ({
   v: { ...base.v, ...(over?.v ?? {}) },
   colors: { ...base.colors, ...(over?.colors ?? {}) },
   eras: { ...base.eras, ...(over?.eras ?? {}) },
+  houses: { ...base.houses, ...(over?.houses ?? {}) },
 });
 
 function readLocal<T>(key: string): T | null {
@@ -78,6 +80,7 @@ function effective(s: Settings): Settings {
       v: { ...s.v, ...ERA_1888.v, ...(mine.v ?? {}) },
       colors: mergeColors(s.colors, ERA_1888.colors as Colors, mine.colors),
       eras: s.eras,
+      houses: s.houses,
     };
   }
   if (quality === 'light') out = { ...out, v: { ...out.v, ...QUALITY_LIGHT } };
@@ -155,6 +158,23 @@ export const settings = {
   },
   setPaper(palette: PaletteId, hex: string) {
     edit((l) => { l.colors[palette] = { ...l.colors[palette], paper: hex }; });
+  },
+  // per-house watercolour: not era-layered (a house's paint is the same in Painterly and 1888)
+  setHouse(id: string, key: string, value: number) {
+    state = { ...state, houses: { ...state.houses, [id]: { ...state.houses?.[id], [key]: value } } };
+    emit();
+  },
+  resetHouse(id: string) {
+    const houses = { ...state.houses };
+    delete houses[id];
+    state = { ...state, houses };
+    emit();
+  },
+  copyHouse(from: string, to: string[], values: Record<string, number>) {
+    const houses = { ...state.houses };
+    for (const id of to) if (id !== from) houses[id] = { ...values };
+    state = { ...state, houses };
+    emit();
   },
   replace(next: Partial<Settings>) {
     state = merge({ v: { ...DEFAULTS }, colors: {} }, next);

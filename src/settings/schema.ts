@@ -155,3 +155,27 @@ export const QUALITY_LIGHT: Record<string, number> = {
   nearCount: 70000, farCount: 45000, groundDot: 1.25, // fewer, slightly larger ground dots
   shrubs: 40, leaves: 50,
 };
+
+// Watercolour look, per modelled house (Generator → Watercolour · per house). Live shader uniforms,
+// one set per house, named uW_<key>; saved under Settings.houses[houseId].
+export const WASH_PARAMS: ParamDef[] = [
+  { key: 'pigment', label: 'Pigment load', min: 0.2, max: 1.2, step: 0.01, def: 0.6, live: true, hint: 'How much paint the lit walls carry' },
+  { key: 'shadowDepth', label: 'Shadow wash depth', min: 0, max: 0.6, step: 0.01, def: 0.34, live: true, hint: 'Extra pigment in the mid-tone and shadow washes' },
+  { key: 'lightness', label: 'Lightness', min: -0.3, max: 0.5, step: 0.01, def: 0, live: true, hint: 'Toward the paper (+) or deeper (−)' },
+  { key: 'paletteTint', label: 'Pull toward palette', min: 0, max: 1, step: 0.01, def: 0.22, live: true, hint: 'Texture colour → the palette’s earth ramp' },
+  { key: 'saturation', label: 'Saturation', min: 0, max: 2, step: 0.01, def: 1.3, live: true },
+  { key: 'violet', label: 'Violet in shadows', min: 0, max: 1, step: 0.01, def: 0.3, live: true },
+  { key: 'warmth', label: 'Warm sunlit side', min: 0, max: 0.3, step: 0.005, def: 0.06, live: true },
+  { key: 'wobble', label: 'Wash edge wobble', min: 0, max: 1, step: 0.01, def: 0.3, live: true, hint: 'How far the wash boundaries wander' },
+  { key: 'wetEdges', label: 'Wet edges', min: 0, max: 0.5, step: 0.005, def: 0.12, live: true, hint: 'Pigment pooling where a wash stops' },
+  { key: 'granulation', label: 'Granulation', min: 0, max: 0.8, step: 0.01, def: 0.3, live: true },
+  { key: 'reserve', label: 'Reserved whites', min: 0, max: 1, step: 0.01, def: 0.85, live: true, hint: 'Bare paper left on the brightest patches' },
+  { key: 'bleed', label: 'Foot bleed (m)', min: 0, max: 2, step: 0.01, def: 0.45, live: true, hint: 'How far the wall fades into the lawn' },
+  { key: 'pencil', label: 'Pencil in shadows', min: 0, max: 1, step: 0.01, def: 0.28, live: true },
+  { key: 'softness', label: 'Texture softness', min: 0, max: 2, step: 0.01, def: 0.75, live: true, hint: 'Blurs the texture; high values smear across the model’s UV seams' },
+  { key: 'relief', label: 'Surface relief', min: 0, max: 1.5, step: 0.01, def: 0.45, live: true, hint: 'How much the normal map shapes the washes' },
+];
+export const WASH_DEFAULTS: Record<string, number> = Object.fromEntries(WASH_PARAMS.map((p) => [p.key, p.def]));
+// a house whose wall material is unknown starts grey, not palette earth
+export const washDefaultsFor = (neutralWalls?: boolean): Record<string, number> =>
+  neutralWalls ? { ...WASH_DEFAULTS, paletteTint: 0, saturation: 0.55 } : { ...WASH_DEFAULTS };

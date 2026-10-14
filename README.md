@@ -61,6 +61,12 @@ npm run build    # type-check + production build into dist/
     the colour toward the palette's earths, lays washes with wet edges, leaves paper white where
     the sun lands, lets the foot of the wall bleed into the lawn, and keeps pencil hatching in the shadows.
   - **Texture:** the Tripo texture as generated, lit by the scene's sun, with a normal map.
+  - **Watercolour · per house** (top of the Generator) tunes each house's wash: pigment load,
+    shadow depth, lightness, pull toward the palette, saturation, violet shadows, warm light, edge
+    wobble, wet edges, granulation, reserved whites, foot bleed, pencil, texture softness and
+    relief. Each house keeps its own values (saved with presets, export and the project default);
+    **Copy to all houses** and **Reset house** sit underneath. Wade Sr. starts grey because its
+    wall material is unknown.
   - Switching looks blotches the new one in with the same noise as the street reveal. In every
     look, **Evidence** drains the (inferred) colour and fades the invented faces.
 - **Generator** ("Tune the generator", or `?gen`): every generative parameter (motion, paint,

@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 import { U } from './uniforms';
+import { WASH_PARAMS, WASH_DEFAULTS } from '../settings/schema';
+
+// per-house watercolour uniforms (uW_<key>); update them with setWash()
+const WASH_UNIFORMS = WASH_PARAMS.map((p) => `uniform float uW_${p.key};`).join('\n');
+export function setWash(mat: THREE.ShaderMaterial, values: Record<string, number>) {
+  for (const p of WASH_PARAMS) if (mat.uniforms[`uW_${p.key}`]) mat.uniforms[`uW_${p.key}`].value = values[p.key] ?? p.def;
+}
 import { EUCLID, CASE, type MeshProvenance, type Provenance } from '../data/site';
 
 const STATE: Record<Provenance, number> = { photographed: 0, inferred: 1, invented: 2 };
@@ -83,7 +90,7 @@ export function makeSurfaceMaterial(opts: {
   state?: number;
   mesh?: { provenance: MeshProvenance; box: THREE.Box3 };
   map?: THREE.Texture | null;
-  looks?: { map: THREE.Texture; normalMap: THREE.Texture; neutral?: boolean };
+  looks?: { map: THREE.Texture; normalMap: THREE.Texture; wash?: Record<string, number> };
 }) {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -97,7 +104,7 @@ export function makeSurfaceMaterial(opts: {
       uLookMap: { value: opts.looks?.map ?? null },
       uNormalMap: { value: opts.looks?.normalMap ?? null },
       uNormalScale: { value: new THREE.Vector2(1, 1) },
-      uNeutral: { value: opts.looks?.neutral ? 1 : 0 },
+      ...Object.fromEntries(WASH_PARAMS.map((p) => [`uW_${p.key}`, { value: opts.looks?.wash?.[p.key] ?? WASH_DEFAULTS[p.key] }])),
     },
     vertexShader: /* glsl */ `
       varying vec3 vWorld;
@@ -137,7 +144,7 @@ export function makeSurfaceMaterial(opts: {
       uniform sampler2D uLookMap;
       uniform sampler2D uNormalMap;
       uniform vec2 uNormalScale;
-      uniform float uNeutral;
+      ${WASH_UNIFORMS}
       uniform vec3 uFoliage[8];
       uniform vec3 uEarth[6];
       uniform float uLookFrom, uLookTo, uLookT;
@@ -174,37 +181,37 @@ export function makeSurfaceMaterial(opts: {
       // a watercolour of the texture: its values and detail, the palette's earths, washes laid in
       // three passes with wobbling wet edges, the paper left white where the light hits hardest
       vec3 washLook(vec3 n) {
-        vec3 alb = texture2D(uLookMap, vUv, 0.75).rgb;
+        // (every uW_ value is a per-house Generator setting; see WASH_PARAMS)
+        vec3 alb = texture2D(uLookMap, vUv, uW_softness).rgb;
         float al = dot(alb, LUMA);
         // the texture's own colour, nudged toward the palette's earths and kept clean (no mud)
-        vec3 pig = mix(alb, rampE(1.0 + al * 5.0) * (0.6 + al), 0.22 * (1.0 - uNeutral));
-        pig = max(mix(vec3(dot(pig, LUMA)), pig, mix(1.3, 0.55, uNeutral)), 0.0); // unknown material: stay grey
+        vec3 pig = mix(alb, rampE(1.0 + al * 5.0) * (0.6 + al), uW_paletteTint);
+        pig = max(mix(vec3(dot(pig, LUMA)), pig, uW_saturation), 0.0);
 
-        vec3 nn = perturb(n, 0.45);
+        vec3 nn = perturb(n, uW_relief);
         vec2 wq = vec2(vWorld.x + vWorld.z, vWorld.y);
         float wob = noise2(wq * 0.045) - 0.5;
-        float s = clamp(dot(nn, uLightDir), 0.0, 1.0) * 0.75 + 0.25 * (0.5 + 0.5 * nn.y) + wob * 0.3;
+        float s = clamp(dot(nn, uLightDir), 0.0, 1.0) * 0.75 + 0.25 * (0.5 + 0.5 * nn.y) + wob * uW_wobble;
         float lit = smoothstep(0.56, 0.6, s);
         float mid = smoothstep(0.3, 0.34, s);
-        float D = 0.6 + 0.2 * (1.0 - mid) + 0.14 * (1.0 - lit);
+        float D = uW_pigment + uW_shadowDepth * (0.59 * (1.0 - mid) + 0.41 * (1.0 - lit));
         // wet edges: pigment pools where one wash stops
-        D += (1.0 - smoothstep(0.0, 0.035, abs(s - 0.32))) * 0.12 + (1.0 - smoothstep(0.0, 0.035, abs(s - 0.58))) * 0.08;
+        D += (1.0 - smoothstep(0.0, 0.035, abs(s - 0.32))) * uW_wetEdges + (1.0 - smoothstep(0.0, 0.035, abs(s - 0.58))) * uW_wetEdges * 0.67;
         // granulation and uneven pigment load
-        D *= 0.82 + 0.3 * noise2(wq * 0.31 + 0.17) + 0.1 * paperGrain(gl_FragCoord.xy);
+        D *= 1.0 - uW_granulation * 0.6 + uW_granulation * noise2(wq * 0.31 + 0.17) + 0.1 * paperGrain(gl_FragCoord.xy);
         // reserved whites: bare paper on the brightest sunlit patches
         float reserve = lit * step(0.62, noise2(wq * 0.09 + 0.5) + (s - 0.6) * 0.8);
-        D *= 1.0 - reserve * 0.85;
-        // lost edges: just the foot of the wall bleeds into the lawn (raised bases and porches keep
-        // their colour; the contact dots cover the seam)
-        D *= smoothstep(0.0, 1.0, (vWorld.y - 0.05) / (0.45 + wob * 0.5));
+        D *= 1.0 - reserve * uW_reserve;
+        // lost edges: the foot of the wall bleeds into the lawn (the contact dots cover the seam)
+        if (uW_bleed > 0.001) D *= smoothstep(0.0, 1.0, (vWorld.y - 0.05) / max(uW_bleed + wob * uW_bleed * 1.1, 0.01));
 
-        vec3 shade = mix(pig, uFoliage[7] * 0.8, 0.3 * (1.0 - mid));     // violet in the shadows
-        shade = mix(shade, shade * vec3(1.06, 1.0, 0.9), lit);            // warm where the sun lands
+        vec3 shade = mix(pig, uFoliage[7] * 0.8, uW_violet * (1.0 - mid));               // violet in the shadows
+        shade = mix(shade, shade * vec3(1.0 + uW_warmth, 1.0, 1.0 - uW_warmth * 1.67), lit); // warm where the sun lands
         vec3 c = mix(uPaper, shade, clamp(D, 0.0, 1.0));
-        // keep the pencil in the shadows only
+        c = uW_lightness >= 0.0 ? mix(c, uPaper, uW_lightness) : c * (1.0 + uW_lightness);
+        // keep the pencil in the shadows only, and only where there is paint
         float h = hatch(vWorld, vec3(900.0, 1400.0, 300.0), 4.6, (1.0 - mid) * 0.32, 0.6);
-        // pencil only where there is paint: no lines left floating on bare paper
-        c = mix(c, uPencil, h * 0.28 * smoothstep(0.15, 0.5, D) * (1.0 - smoothstep(70.0, 180.0, vDepth)));
+        c = mix(c, uPencil, h * uW_pencil * smoothstep(0.15, 0.5, D) * (1.0 - smoothstep(70.0, 180.0, vDepth)));
         return c;
       }
       #endif

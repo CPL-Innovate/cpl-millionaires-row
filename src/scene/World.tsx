@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { BUILDINGS, PLATE, STATIONS, plateToWorld, euclidCentreZ, EUCLID, type Building, type MeshModel } from '../data/site';
-import { makeDabMaterial, makeGroundMaterial, makeLineMaterial, makeSurfaceMaterial } from '../gl/materials';
+import { makeDabMaterial, makeGroundMaterial, makeLineMaterial, makeSurfaceMaterial, setWash } from '../gl/materials';
 import { elm, massing, treeParams, windmillRotor, windmillTower } from '../gl/geometry';
 import { U } from '../gl/uniforms';
-import { useRebuild } from '../settings/store';
+import { useRebuild, useSettings } from '../settings/store';
+import { washDefaultsFor } from '../settings/schema';
 
 const STATE = { photographed: 0, inferred: 1, invented: 2 } as const;
 
@@ -116,7 +117,7 @@ function MeshHouse({ b }: { b: Building }) {
   return (
     <>
       <group position={[x, 0, z]} rotation-y={rot} scale={s}>
-        {model.looks ? <LooksSurface geo={geo} map={map} model={model} /> : <PencilSurface geo={geo} map={map} model={model} />}
+        {model.looks ? <LooksSurface geo={geo} map={map} model={model} houseId={b.id} /> : <PencilSurface geo={geo} map={map} model={model} />}
         <lineSegments geometry={edges} material={line} renderOrder={2} />
       </group>
       <points geometry={contact} material={contactMat} renderOrder={2} />
@@ -131,7 +132,7 @@ function PencilSurface({ geo, map, model }: SurfaceProps) {
   return <mesh geometry={geo} material={surf} renderOrder={1} />;
 }
 
-function LooksSurface({ geo, map, model }: SurfaceProps) {
+function LooksSurface({ geo, map, model, houseId }: SurfaceProps & { houseId: string }) {
   const [lookMap, normalMap] = useLoader(THREE.TextureLoader, [model.looks!.map, model.looks!.normalMap]);
   const surf = useMemo(() => {
     // glTF UVs: no flip
@@ -139,8 +140,11 @@ function LooksSurface({ geo, map, model }: SurfaceProps) {
     lookMap.colorSpace = THREE.SRGBColorSpace;
     lookMap.anisotropy = normalMap.anisotropy = 8;
     lookMap.needsUpdate = normalMap.needsUpdate = true;
-    return makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, looks: { map: lookMap, normalMap, neutral: model.neutralWalls } });
+    return makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, looks: { map: lookMap, normalMap } });
   }, [geo, map, model, lookMap, normalMap]);
+  // this house's watercolour settings (Generator → Watercolour · per house), live
+  const saved = useSettings().houses?.[houseId];
+  useEffect(() => setWash(surf, { ...washDefaultsFor(model.neutralWalls), ...saved }), [surf, saved, model.neutralWalls]);
   return <mesh geometry={geo} material={surf} renderOrder={1} />;
 }
 
