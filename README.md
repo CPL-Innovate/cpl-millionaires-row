@@ -119,6 +119,53 @@ npm run build    # type-check + production build into dist/
 - **Deep links:** `?map=plate` opens on the flat plate instead of the Atlas; `?station=everett&palette=sepia&evidence=0.6&look=wash&era=1888&gen` (`look` is
   `pencil`, `wash` or `texture`; `era` is `painterly` or `1888`)
 
+## Threads (branch `threads`, 2026-10-14)
+
+Eleven short animated chapters, picked from **Threads** in the station bar, from the vault's
+`content/2026-10-14-threads-scripts` (v0.2). Each one is choreographed by hand as one paused gsap
+timeline (`src/threads/<name>.ts`). Every state it touches is tweened on that timeline, so a stop can
+be jumped to or replayed and lands in the right state. These include the camera, the grade, the houses,
+ambience levels, looping beds, the map overlay and the sketched figures. When a thread ends, the walker
+takes over wherever its camera stopped, or the map does.
+
+| Thread | Stops | Runs | What it adds |
+|---|---|---|---|
+| Vanished | 8 | 1:56 | The whole Avenue as one ink line on paper, houses as dots by street number (`threads/avenue.ts`, from the mansion survey) |
+| The Silent Bells | 6 | 1:25 | Night grade, window glow, the Wade villa dissolving into construction lines |
+| The Line | 7 | 1:50 | The horsecar route on the map insert, a sketched 1908 crowd, rails that ink themselves down Euclid |
+| Lit by Wind | 6 | 1:35 | Electric (even) vs gas (flickering) window light; a sketched walker |
+| The Misfire | 5 | 1:05 | A handheld, deliberately unlocated 1884 stop |
+| Follow the Money | 6 | 1:40 | A ghost massing block (the Burgert house) sliding down Case; smoke over the villas |
+| Afterlives | 6 | 1:35 | Golf flags, the Arena crowd, the survivors coming up in watercolour |
+| Who's Missing | 6 | 1:25 | Empty frames and blank "name unknown" cards: no invented people |
+| The Starting Line | 5 | 1:10 | A winter: snow grade, falling snow, the carriages off the street, drawn sleighs |
+| Listen | 8 | 2:15 | Narrated (ElevenLabs), the frame near-black, sound captions throughout |
+| Four Corners | 8 | 1:55 | Two turns from the middle of the road |
+
+- **Controls:** space pauses, ← → step between stops, Esc leaves. Sound captions are on throughout.
+- **Deep links:** `?thread=<id>&stop=<n>&at=<seconds>&hold` (`hold` pauses there, for screenshots).
+- **The shell:**
+  - `threads/kit.ts` is the stop helpers the threads are written in.
+  - `player.ts` starts, seeks and leaves a thread.
+  - `ThreadStage.tsx` (in the Canvas) applies the rig.
+  - `ThreadPlayer.tsx` holds the panel, the prints, the captions, the controls and the menu.
+  - `AvenueMap.tsx` is the map overlay.
+  - `Figures.tsx` has the sketched people, sleighs, flags, rails, the ghost block and the snow.
+- **Shared effects:**
+  - `gl/night.ts`: the night, smoke and winter grades, applied in three's colorspace chunks so every material gets them.
+  - `uGone` / `uGlow` per house (`houseFx` in `gl/uniforms.ts`): dissolve to construction lines, and light where the photo-derived texture is dark.
+- **Sound:**
+  - `scripts/sounds.json` tier `threads`, made with `gen-sounds.mjs`.
+  - Narration: `scripts/voice.json` with `gen-voice.mjs` (needs `ELEVENLABS_API_KEY`).
+  - `scripts/synth-sounds.py`: numpy stand-ins, kept as a fallback.
+- **Archive prints** not yet in the build show as "not yet in the build" cards with their record pointer.
+- **Honest limits:**
+  - Draft copy, not checked with L&GH.
+  - Wilson quotes are not rights-cleared.
+  - Every year in Vanished still needs a check.
+  - Figures, crowds, sleighs, the golf flags and the ghost block are drawn inventions.
+  - Several threads run past the script's ~1:30–1:45. The script says to cut stops, not speed up.
+
 ## How it's built
 
 React + TypeScript + Vite + Three.js via React Three Fiber. GSAP handles transitions. There is no
