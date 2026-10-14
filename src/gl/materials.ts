@@ -443,6 +443,7 @@ export function makeGroundMaterial(plate: THREE.Texture) {
       uniform vec2 uCase;
       uniform sampler2D uLots;
       uniform float uLotHover, uLotHoverT, uLotSel;
+      uniform float uStreetDraw;
       uniform vec3 uMark;
       varying vec2 vUv;
       varying vec3 vWorld;
@@ -507,6 +508,15 @@ export function makeGroundMaterial(plate: THREE.Texture) {
             strokes = step(0.86, hash2(floor(xz * 2.4))) * 0.35;
           }
           float ink = clamp(max(lineInk, strokes) - foot * 0.5, 0.0, 1.0);
+          // Euclid and Case marked: firm curb lines, a little unsteady, drawn out from the corner
+          {
+            float reach = uStreetDraw * 440.0 + (noise2(xz * 0.01) - 0.5) * 16.0;
+            float wobE = (noise2(vec2(xz.x * 0.015, 1.3)) - 0.5) * 0.3;
+            float wobC = (noise2(vec2(xz.y * 0.015, 4.1)) - 0.5) * 0.3;
+            float curbE = (1.0 - smoothstep(0.1, 0.34, abs(abs(de) - uEuclid.x + wobE))) * step(uCase.x, abs(dc)) * step(abs(xz.x), reach);
+            float curbC = (1.0 - smoothstep(0.1, 0.34, abs(abs(dc) - uCase.x + wobC))) * step(uEuclid.x, abs(de)) * step(abs(xz.y), reach);
+            ink = max(ink, max(curbE, curbC) * 0.8);
+          }
           atlasCol = mix(paperC, uPencil, ink * 0.75);
           // lots: the hovered one hatched in the accent with a firm edge; the selected one stays
           vec2 px = vec2(1.6) / vec2(1000.0, 700.0);
@@ -867,12 +877,13 @@ export function makeDabMaterial(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Atlas trees: one shape per tree instead of its crown dots, after loose watercolour tree studies.
-// A screen-facing quad stands on the trunk's foot; the crown is a lobed blot (an elm's vase: wider
-// at the top) washed in a muted sage, darker where the pigment pools at its rim and on the side
-// away from the low south-west sun, with paler blooms and a broken ink contour; a thin forked trunk
-// below. The quad is foreshortened like a real vertical (cos of the camera's pitch), so trees sit
-// on the oblique ground. Only drawn where the Atlas shows and the paint hasn't arrived.
+// Atlas trees, after an engraved bird's-eye map: small crowns of paper seen from above, each a
+// lopsided cauliflower outline in grey ink (bumps of uneven size, count and depth, per tree), a
+// broken inner contour for a nearer clump, a grey shade and a few strokes on the side away from the
+// low south-west sun; no trunk. The depth comes
+// from soft grey shadows pooling on the ground (makeAtlasShadowMaterial). A screen-facing quad
+// stands on the tree's foot, foreshortened like a real vertical (cos of the camera's pitch). Only
+// drawn where the Atlas shows and the paint hasn't arrived.
 // ---------------------------------------------------------------------------------------------
 const ATLAS_TREE_VARY = /* glsl */ `
   attribute vec4 iCrown; // x, z, crown bottom, crown top
@@ -880,6 +891,9 @@ const ATLAS_TREE_VARY = /* glsl */ `
   varying vec2 vM;       // position on the quad in metres (x across, y up from the foot)
   varying vec2 vBase;
   varying float vCrownY, vR, vSeed, vAut;
+  // the crown as drawn: well inside the dots' spread, so the street reads between the trees
+  float atlasR(float r) { return r * 0.5 + 0.6; }
+  float atlasSize(float seed) { return 0.8 + 0.7 * fract(seed * 5.13); } // young … old, per tree
 `;
 export function makeAtlasTreeMaterial() {
   return new THREE.ShaderMaterial({
@@ -890,9 +904,10 @@ export function makeAtlasTreeMaterial() {
         vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
         vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
         float cosP = clamp(up.y, 0.25, 1.0);
-        float r = iShape.x;
-        float crownY = (iCrown.z + iCrown.w) * 0.5 * cosP;
-        float w = r * 1.3, h = crownY + r * 1.3;
+        float r = atlasR(iShape.x) * atlasSize(iShape.y);
+        // seen from well above, a crown hides its trunk: sit it low over its foot
+        float crownY = max((iCrown.z + iCrown.w) * 0.5 * cosP * 0.35, r * 0.7);
+        float w = r * 1.25, h = crownY + r * 1.25;
         vM = vec2(position.x * w, position.y * h);
         vBase = iCrown.xy;
         vCrownY = crownY; vR = r; vSeed = iShape.y; vAut = iShape.z;
@@ -902,53 +917,55 @@ export function makeAtlasTreeMaterial() {
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
-      uniform vec3 uFoliage[8];
-      uniform vec3 uEarth[6];
       varying vec2 vM;
       varying vec2 vBase;
       varying float vCrownY, vR, vSeed, vAut;
-      float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
+      // a crown seen from above: a lopsided body with a scalloped, cauliflower rim whose bumps vary
+      // in count, width and depth (returns the rim's radius at this angle, in crown units)
+      float crownEdge(float ang, float s, float big) {
+        vec2 dir = vec2(cos(ang), sin(ang));
+        float body = 0.84 + 0.09 * sin(2.0 * ang + s * 6.28) + 0.06 * sin(3.0 * ang + s * 11.0)
+                   + 0.16 * (noise2(dir * 0.22 + s * 9.0) - 0.5);
+        float k = big + floor(fract(s * 17.3) * 5.0);
+        float warp = ang + 0.32 * sin(3.0 * ang + s * 5.0) + 0.18 * sin(5.0 * ang + s * 2.0);
+        float bump = pow(abs(sin(k * 0.5 * warp + s * 20.0)), 0.55);
+        float depth = 0.09 + 0.07 * noise2(dir * 0.4 + s * 3.0);
+        return body * (1.0 - depth + depth * bump);
+      }
       void main() {
         if (atlasIn(vBase) * (1.0 - reveal(vBase)) < 0.5) discard;
         float s = vSeed;
-        // crown: a lobed blot, wider toward the top like an elm's vase
         vec2 q = vec2(vM.x, vM.y - vCrownY) / vR;
-        q.x /= mix(0.82, 1.1, clamp(q.y * 0.5 + 0.5, 0.0, 1.0));
+        q.y /= 0.9;
         float ang = atan(q.y, q.x), rad = length(q);
-        float edge = 0.92 + 0.09 * sin(3.0 * ang + s * 6.28) + 0.06 * sin(5.0 * ang + s * 17.0) + 0.04 * sin(9.0 * ang + s * 31.0)
-                   + 0.16 * (noise2(q * 0.3 + s * 7.0) - 0.5);
-        float aa = fwidth(rad) * 1.2;
-        float crown = 1.0 - smoothstep(edge - aa, edge + aa, rad);
-        // trunk: tapering, a little crooked, forking into the crown
-        float wob = (noise2(vec2(vM.y * 0.06, s * 9.0)) - 0.5) * 0.5;
-        float tw = 0.16 + 0.1 * (1.0 - clamp(vM.y / max(vCrownY, 0.1), 0.0, 1.0));
-        float trunk = (1.0 - smoothstep(tw - 0.04, tw + 0.04, abs(vM.x - wob))) * step(vM.y, vCrownY - vR * 0.35);
-        vec2 fork = vec2(0.0, vCrownY - vR * 0.55);
-        float limbs = min(seg(vM, fork, fork + vec2(-vR * 0.35, vR * 0.5)), seg(vM, fork, fork + vec2(vR * 0.3, vR * 0.45)));
-        trunk = max(trunk, (1.0 - smoothstep(0.08, 0.14, limbs)) * step(vM.y, vCrownY));
-        float a = max(crown, trunk);
-        if (a < 0.02) discard;
+        float edge = crownEdge(ang, s, 7.0);
+        if (rad > edge) discard;
+        float px = fwidth(rad) * 1.2;
+        vec3 ink = mix(uPaper, uPencil, 0.58);
 
-        // the wash: a muted sage from pale to deep, each tree its own green, a breath of autumn
-        float n1 = noise2(q * 0.3 + s * 3.1), n2 = noise2(q * 0.2 + s * 5.3 + 0.37);
-        vec3 deep = mix(mix(uFoliage[0], uEarth[0], vAut * 0.25), uPencil, 0.38);
-        vec3 pale = mix(mix(uFoliage[2], uFoliage[1], fract(s * 7.31)), uPaper, 0.4);
-        // lit from the low south-west: pale up and to the left, pooled dark low and to the right
-        float light = clamp(0.62 - 0.34 * q.x + 0.38 * q.y + (n1 - 0.5) * 0.6, 0.0, 1.0);
-        float dens = 0.15 + 0.6 * (1.0 - light);
-        dens += smoothstep(0.78, 1.0, rad / edge) * 0.22;                       // pigment pools at the rim
-        dens += smoothstep(-0.1, -0.9, q.y) * 0.18;                              // and settles low
-        // one or two soft blooms where the wash was lifted, with a faint tide line round them
-        float bloom = smoothstep(0.5, 0.72, n2) * light;
-        float tide = (1.0 - smoothstep(0.0, 0.035, abs(n2 - 0.5))) * 0.12;
-        dens = clamp(dens * (1.0 - 0.6 * bloom) + tide, 0.0, 1.0);
-        vec3 c = mix(pale, deep, dens);
-        c = mix(c, uPaper, bloom * 0.35);
-        float contour = smoothstep(0.93, 0.995, rad / edge) * step(0.4, noise2(vec2(ang * 1.7, s * 4.0)));
-        c = mix(c, uPencil, contour * 0.3);
-        vec3 bark = mix(uPencil, uPaper, 0.4);
-        vec3 col = mix(bark, c, crown);
-        if (a < 0.5) discard;
+        // paper, a grey shade and a few engraver's strokes on the side away from the sun
+        float side = dot(q, vec2(0.62, -0.55));
+        float shade = smoothstep(-0.2, 0.9, side);
+        float grain = noise2(vM * 0.9 + s * 3.0);
+        vec3 col = mix(uPaper, uPencil, 0.03 + shade * 0.1 + (grain - 0.5) * 0.025);
+        float strokes = smoothstep(0.55, 0.75, abs(fract((q.x - q.y * 0.6) * 5.5 + s) - 0.5) * 2.0);
+        col = mix(col, ink, strokes * smoothstep(0.35, 0.9, side) * 0.35 * step(0.3, noise2(q * 0.7 + s)));
+
+        // a nearer clump inside the crown: its rim drawn where it crosses the crown, broken
+        // (somewhere different on each tree, a short stretch of it, and not on every tree)
+        float phi = fract(s * 23.1) * 6.2831;
+        vec2 cq = (q - 0.32 * vec2(cos(phi), sin(phi))) / (0.5 + 0.15 * fract(s * 3.7));
+        float cang = atan(cq.y, cq.x);
+        float cEdge = crownEdge(cang, fract(s * 7.7 + 0.31), 5.0);
+        float cDist = length(cq) - cEdge;
+        float arc = smoothstep(0.35, 0.6, cos(cang - phi - 3.1416 + (fract(s * 41.0) - 0.5) * 1.6));
+        float inner = (1.0 - smoothstep(px * 0.6, px * 1.6, abs(cDist) * 0.55)) * arc * step(0.4, fract(s * 29.3));
+        col = mix(col, ink, inner * 0.6);
+
+        // the crown's own rim, heavier on the shade side
+        float lw = px * (1.0 + 0.9 * smoothstep(0.0, 0.8, side));
+        float rim = 1.0 - smoothstep(lw * 0.5, lw * 1.5, edge - rad);
+        col = mix(col, ink, rim);
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }
@@ -956,19 +973,21 @@ export function makeAtlasTreeMaterial() {
   });
 }
 
-// the tree's shadow: a pale wash on the ground, thrown north-east from the low south-west sun
+// the tree's shadow: a soft grey pool on the ground thrown north-east from the low south-west sun;
+// neighbouring shadows overlap and darken, the way the engraved map's shade gathers under groves
 export function makeAtlasShadowMaterial() {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
+    side: THREE.DoubleSide,
     uniforms: { ...U },
     vertexShader: /* glsl */ `
       ${ATLAS_TREE_VARY}
       void main() {
-        float r = iShape.x;
+        float r = atlasR(iShape.x) * atlasSize(iShape.y);
         float h = (iCrown.z + iCrown.w) * 0.5;
-        vec2 c = iCrown.xy + vec2(0.55, -0.6) * h * 0.55;
-        vM = position.xy * r * 1.5;
+        vec2 c = iCrown.xy + vec2(0.55, -0.6) * h * 0.6;
+        vM = position.xy * r * 2.2;
         vBase = iCrown.xy;
         vCrownY = h; vR = r; vSeed = iShape.y; vAut = iShape.z;
         gl_Position = projectionMatrix * viewMatrix * vec4(c.x + vM.x, 0.06, c.y + vM.y, 1.0);
@@ -981,14 +1000,65 @@ export function makeAtlasShadowMaterial() {
       varying float vCrownY, vR, vSeed, vAut;
       void main() {
         if (atlasIn(vBase) * (1.0 - reveal(vBase)) < 0.5) discard;
-        vec2 q = vM / vR;
+        vec2 q = vM / (vR * 1.5);
         q = vec2(q.x * 0.8 + q.y * 0.35, q.y * 0.9);  // stretched along the throw
         float ang = atan(q.y, q.x);
-        float edge = 0.95 + 0.08 * sin(3.0 * ang + vSeed * 6.28) + 0.12 * (noise2(q * 0.3 + vSeed * 7.0) - 0.5);
-        float m = 1.0 - smoothstep(edge - 0.12, edge, length(q));
+        float edge = 0.9 + 0.1 * sin(3.0 * ang + vSeed * 6.28) + 0.15 * (noise2(q * 0.3 + vSeed * 7.0) - 0.5);
+        float m = 1.0 - smoothstep(edge - 0.45, edge, length(q));
         if (m < 0.01) discard;
-        float n = noise2(q * 0.8 + vSeed * 2.0);
-        gl_FragColor = vec4(mix(uPaper, uPencil, 0.5), m * (0.16 + 0.06 * n));
+        float n = noise2(vM * 0.08 + vSeed * 2.0);
+        gl_FragColor = vec4(mix(uPaper, uPencil, 0.55), m * (0.2 + 0.08 * n));
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Atlas street names, lettered flat on the roadway. They write themselves in: a pen front sweeps
+// along the name, slanted like a nib and wavering a little, with fresh ink darker just behind it
+// drying back to the drawing's grey.
+// ---------------------------------------------------------------------------------------------
+export function makeStreetLabelMaterial(map: THREE.Texture, seed: number) {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false, // a map's lettering sits over everything, trees included
+    uniforms: { ...U, uMap: { value: map }, uT: { value: 0 }, uSeed: { value: seed } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      varying vec3 vWorld;
+      void main() {
+        vUv = uv;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorld = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      uniform sampler2D uMap;
+      uniform float uT, uSeed;
+      varying vec2 vUv;
+      varying vec3 vWorld;
+      void main() {
+        float vis = atlasIn(vWorld.xz) * (1.0 - reveal(vWorld.xz));
+        float glyph = texture2D(uMap, vUv).a;
+        // a paper halo knocked out round the letters, as an engraver clears lettering over trees
+        vec2 px = vec2(1.0) / vec2(textureSize(uMap, 0));
+        float halo = 0.0;
+        for (int i = 0; i < 12; i++) {
+          float a = float(i) * 0.5236;
+          halo = max(halo, texture2D(uMap, vUv + vec2(cos(a), sin(a)) * px * 9.0).a);
+        }
+        float front = uT * 1.12 - 0.04;
+        float u = vUv.x + (vUv.y - 0.5) * 0.05 + (noise2(vec2(vUv.y * 2.0, uSeed)) - 0.5) * 0.03;
+        float written = 1.0 - smoothstep(front - 0.015, front, u);
+        float wet = smoothstep(front - 0.14, front - 0.01, u) * written;
+        float a = max(glyph, halo * 0.85) * written * vis;
+        if (a < 0.01) discard;
+        vec3 ink = mix(mix(uPaper, uPencil, 0.8), uPencil, wet * 0.6);
+        gl_FragColor = vec4(mix(uPaper, ink, glyph / max(a, 1e-3) * written * vis), a);
         #include <colorspace_fragment>
       }
     `,

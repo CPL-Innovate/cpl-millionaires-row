@@ -42,11 +42,13 @@ npm run build    # type-check + production build into dist/
 ## Using it
 
 - **Atlas (prototype, the default map):** the 3D street seen from a bird's-eye view and drawn as an
-  engraving. The plate's linework is inked on bare paper, each tree is a single watercolour shape (a
-  lobed sage wash, pooled dark on the shade side, a thin trunk, a pale ground shadow; `AtlasTrees`),
+  engraving. The plate's linework is inked on bare paper, each tree is a small paper crown seen from
+  above (a lopsided, scalloped ink outline that varies tree to tree) over a soft grey shadow pool,
+  after an engraved map (`AtlasTrees`),
   and the houses are in pencil. Hover a lot and it hatches in red, with its name set
   large; click to select it and fly there, click again (or "Walk the street") to descend, and the
-  paint takes over from the ink. Drag to fly, right-drag to turn, scroll to zoom. Nine lots are
+  paint takes over from the ink. Drag to fly, right-drag to turn, scroll to zoom. Euclid's and E. 40th's (Case Avenue's) curbs are inked in and their names write themselves on
+  the roadway each time the Atlas comes up. Nine lots are
   traced so far (`LOTS` in `data/site.ts`, plate px); the lot strip runs west to east along the
   bottom.
 - **Map mode (1881 plate):** the 1881 Hopkins Plates 3 and 5, georeferenced into one north-up map. Pick a house
@@ -139,8 +141,9 @@ src/
                         presets, project defaults)
   ui/GeneratorPanel.tsx The Generator drawer (incl. Watercolour · per house)
   ui/Perf.tsx           Frame-rate probe (?fps)
+  scene/AtlasLabels.tsx Atlas street names on the roadway, written in with a pen-sweep reveal
   scene/AtlasPicker.tsx Atlas hover/click: pointer → ground → plate px → lot
-  scene/AtlasTrees.tsx  Atlas trees: one instanced watercolour shape + ground shadow per tree
+  scene/AtlasTrees.tsx  Atlas trees: one instanced paper crown + ground shadow per tree
   gl/lots.ts            Lot id texture for the ground shader, point-in-lot, lot centres
 scripts/
   compose_plate.py      Georeferences Plates 3 + 5 into public/plates/euclid-case-1881.jpg

@@ -1,25 +1,25 @@
 import * as THREE from 'three';
 import { LOTS, PLATE } from '../data/site';
 
-// The Atlas's lots as an id texture over the plate: each lot filled with red = (index + 1) × 20,
-// so the ground shader can hatch the hovered one in. Half the plate's resolution is plenty.
+// The Atlas's lots as an id texture over the plate: each lot's pixels hold red = (index + 1) × 20,
+// so the ground shader can hatch the hovered one in. Written pixel by pixel, not drawn: a canvas
+// fill antialiases its edges, and a half-blended edge of one lot can land on another lot's id
+// (that lit up a strip across Euclid when a Wade lot was hovered). Half the plate's resolution.
 export function makeLotTexture() {
   const W = PLATE.widthPx / 2, H = PLATE.heightPx / 2;
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#000';
-  g.fillRect(0, 0, W, H);
-  LOTS.forEach((lot, i) => {
-    g.fillStyle = `rgb(${(i + 1) * 20},0,0)`;
-    g.beginPath();
-    lot.poly.forEach(([x, y], k) => (k ? g.lineTo(x / 2, y / 2) : g.moveTo(x / 2, y / 2)));
-    g.closePath();
-    g.fill();
-  });
-  const t = new THREE.CanvasTexture(c);
+  const data = new Uint8Array(W * H * 4);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = lotAt(x * 2 + 1, y * 2 + 1);
+      // DataTexture rows run bottom-up; the plate's image (and its UVs) top-down
+      const o = ((H - 1 - y) * W + x) * 4;
+      data[o] = i < 0 ? 0 : (i + 1) * 20;
+      data[o + 3] = 255;
+    }
+  }
+  const t = new THREE.DataTexture(data, W, H);
   t.minFilter = t.magFilter = THREE.NearestFilter;
-  t.generateMipmaps = false;
+  t.needsUpdate = true;
   return t;
 }
 

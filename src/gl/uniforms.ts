@@ -65,6 +65,7 @@ export const U = {
   uLotHoverT: { value: 0 },
   uLotSel: { value: -1 },
   uMark: { value: new THREE.Color() },
+  uStreetDraw: { value: 0 }, // Atlas: how far Euclid's and Case's curb lines have drawn out from the corner (0–1)
   uRevealCenter: { value: new THREE.Vector2(0, 0) },
   uRevealRadius: { value: 0 },
   uWash: { value: [0, 1, 2, 3, 4].map(() => new THREE.Color()) },

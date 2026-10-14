@@ -12,11 +12,12 @@ import { U } from '../gl/uniforms';
 export type Mode = 'map' | 'street';
 export type MapStyle = 'atlas' | 'plate';
 
-// the flat plate is read from nearly overhead; the Atlas is a bird's-eye from the south-south-west,
-// low enough to see walls and crowns, like an engraved view
+// the flat plate is read from nearly overhead; the Atlas is a bird's-eye from the west looking east,
+// so Euclid runs up the middle of the page (west at the foot, east at the head, north on the left),
+// low enough to see walls and crowns
 const FRAMES: Record<MapStyle, { pos: THREE.Vector3; target: THREE.Vector3 }> = {
   plate: { pos: new THREE.Vector3(-40, 440, 120), target: new THREE.Vector3(-40, 0, -10) },
-  atlas: { pos: new THREE.Vector3(-95, 175, 225), target: new THREE.Vector3(-30, 0, -25) },
+  atlas: { pos: new THREE.Vector3(-273, 175, 0), target: new THREE.Vector3(-15, 0, 0) },
 };
 // where the Atlas can be panned to (the plate's built-up middle)
 const PAN = { x0: -240, x1: 150, z0: -170, z1: 150 };
@@ -223,8 +224,8 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
       maxDistance={520}
       minPolarAngle={0.6}
       maxPolarAngle={1.2}
-      minAzimuthAngle={-1.1}
-      maxAzimuthAngle={0.6}
+      minAzimuthAngle={-Math.PI / 2 - 0.85}
+      maxAzimuthAngle={-Math.PI / 2 + 0.85}
       screenSpacePanning={false}
       onChange={() => {
         const t = controls.current?.target;

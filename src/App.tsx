@@ -4,6 +4,7 @@ import gsap from 'gsap';
 import { World } from './scene/World';
 import { CameraRig, type MapStyle, type Mode } from './scene/CameraRig';
 import { AtlasPicker } from './scene/AtlasPicker';
+import { AtlasLabels } from './scene/AtlasLabels';
 import { BeatPins, PhotoGhost, PlateLabels } from './scene/Overlays';
 import { BEATS, BUILDINGS, LOTS, STATIONS, type Station } from './data/site';
 import { PALETTES, type PaletteId } from './palettes';
@@ -203,6 +204,7 @@ export default function App() {
         <Suspense fallback={null}>
           <World />
           <PlateLabels onPick={goStation} show={mode === 'map' && mapStyle === 'plate'} />
+          <AtlasLabels show={atlasOn} />
           <BeatPins onPick={(id) => setBeat(beat === id ? null : id)} active={beat} show={mode === 'street'} />
         </Suspense>
         <Suspense fallback={null}>
