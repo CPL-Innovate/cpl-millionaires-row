@@ -142,15 +142,38 @@ export const BUILDINGS: Building[] = [
     address: '3903 Euclid',
     owner1888: 'Jeptha H. Wade Jr. (Randall d. 1876)',
     plateLabel: 'Mrs. R. P. Wade',
-    plate: [801, 477],
-    kind: 'villa',
-    size: [17, 9, 19],
+    // front wall on 1912 Sanborn 96's front edge (62 m back from the Euclid line), centred on the
+    // main block; the 1881 plate's footprint sits ~2 m further south and ~3 m east (inside ±5 m)
+    plate: [795, 499],
+    kind: 'mesh',
+    size: [20.6, 16.3, 19.8],
+    model: {
+      url: '/models/wade-randall.glb',
+      // front block 0.77 units ↔ 53 ft (16.1 m) on 1912 Sanborn 96, without the later rear additions and
+      // the garage; its cornice then lands within half a metre of the twin Wade Sr. villa's eaves
+      scale: 21,
+      provenance: {
+        front: 'photographed', sideNegX: 'photographed', sidePosX: 'invented', roof: 'inferred', rear: 'invented',
+        frontInventedPastX: 0.38, // the east end: hidden behind a neighbouring building in 8140; Tripo mirrored the west wing here
+      },
+      note: 'Mesh: Tripo image-to-3D spike RW1, unscored, not a reconstruction. Tripo mirrored the west wing onto the east end.',
+      looks: { map: '/models/wade-randall-basecolor.jpg', normalMap: '/models/wade-randall-normal.jpg' },
+    },
     status: 'Razed 1934',
     ledger: [
-      { surface: 'Footprint', state: 'inferred', basis: '1881 Plate 3; 1912 Sanborn 96 (stone)' },
-      { surface: 'Massing', state: 'inferred', basis: 'Twin of the Wade Sr. villa (shared drive)' },
+      { surface: 'South front', state: 'photographed', basis: 'CPL 8140 (Ryder stereograph, 1883) → GPT clean → Tripo RW1; statues and double stairs confirmed in 8124' },
+      { surface: 'Front door, crest, frieze panels', state: 'invented', basis: 'Dark or blurred in 8140; GPT drew them crisp and symmetrical' },
+      { surface: 'West side wing', state: 'photographed', basis: 'The strip seen in 8140' },
+      { surface: 'East end + return', state: 'invented', basis: 'Hidden by a neighbouring building in 8140' },
+      { surface: 'Roof', state: 'inferred', basis: 'Belvedere seen in 8140; behind it invented' },
+      { surface: 'Rear', state: 'invented', basis: 'Tripo copied the front' },
+      { surface: 'Walls', state: 'inferred', basis: 'Sandstone is documented (Akron quarry); the colour is not' },
+      { surface: 'Scale', state: 'inferred', basis: '1912 Sanborn 96 (stone dwelling, minus the additions and garage); model is ~55% of the main block’s depth' },
     ],
-    sources: [{ label: 'Randall Wade residence', id: 'p4014coll18:8124' }],
+    sources: [
+      { label: 'Randall Wade residence, stereograph (Ryder), 1883', id: 'p4014coll18:8140' },
+      { label: 'Randall Wade residence, portico', id: 'p4014coll18:8124' },
+    ],
   },
   {
     id: 'stager-beckwith',
@@ -189,15 +212,33 @@ export const BUILDINGS: Building[] = [
     address: '3725 Euclid',
     owner1888: 'Charles F. Brush',
     plateLabel: 'T. R. Scowden + H. Flagler',
-    plate: [561, 466],
-    kind: 'romanesque',
-    size: [22, 13, 24],
+    // front wall on 1912 Sanborn 96's front edge (61 m back from the Euclid line), centred on the
+    // main block in the east (Scowden) half of 3725: ~17 m west of the old massing guess
+    plate: [520, 493],
+    kind: 'mesh',
+    size: [26, 20.4, 19.7],
+    model: {
+      url: '/models/brush.glb',
+      // two-gabled front block 0.66 units ↔ 57 ft (17.5 m) front wall on 1912 Sanborn 96; then 20 m
+      // high, ~1.4× Stager-Beckwith's tower (M ch15-5 reads ~1.5×). Fitting the whole 0.98-unit
+      // width to the footprint instead would make it 16.6 m, too low for three storeys and pavilions
+      scale: 26.5,
+      provenance: { front: 'photographed', sideNegX: 'inferred', sidePosX: 'invented', roof: 'inferred', rear: 'invented' },
+      note: 'Mesh: Tripo image-to-3D spike B1 from a 600-px book halftone. AI-touched; placeholder until it is re-run from the CPL print.',
+      looks: { map: '/models/brush-basecolor.jpg', normalMap: '/models/brush-normal.jpg' },
+    },
     status: 'Razed 1929 by his will',
     ledger: [
-      { surface: 'Position', state: 'inferred', basis: 'Scowden half of the combined lot (plates README overlay)' },
-      { surface: 'Massing', state: 'inferred', basis: 'Book plates M ch15-3, G ch01-23 (originals not yet obtained)' },
+      { surface: 'South front', state: 'photographed', basis: 'Book reproduction (Dutka, Misfortune ch. 15 fig. 3, credited CPL) → GPT clean → Tripo B1. Mass and silhouette only' },
+      { surface: 'Carving, capitals, mouldings', state: 'invented', basis: 'GPT’s, drawn crisp from a halftone blur' },
+      { surface: 'West end bay', state: 'invented', basis: 'The source shows a chimney and a shadowed edge' },
+      { surface: 'Tower base + wing under it', state: 'invented', basis: 'Cut by the frame and foliage in the source' },
+      { surface: 'West return', state: 'inferred', basis: 'Seen in G ch01-23 (not a model input)' },
+      { surface: 'East + north', state: 'invented', basis: 'No photograph used' },
+      { surface: 'Walls', state: 'inferred', basis: 'Grey stone from the Sanborn colour code only' },
+      { surface: 'Scale', state: 'inferred', basis: '1912 Sanborn 96, east half of 3725; model is ~65% of the main block’s depth' },
     ],
-    sources: [{ label: 'Brush mansion — Dutka, Misfortune (2015) ch. 15, credited CPL Photograph Coll.' }],
+    sources: [{ label: 'Brush mansion — Dutka, Misfortune (2015) ch. 15, credited CPL Photograph Coll. AI-touched; placeholder' }],
   },
   {
     id: 'rockefeller',
@@ -239,13 +280,30 @@ export const BUILDINGS: Building[] = [
     address: 'SE corner, Euclid & Case',
     owner1888: 'Parish of St. Paul’s',
     plateLabel: 'St. Paul’s Epis. Ch.',
-    plate: [1064, 781],
-    kind: 'church',
-    size: [16, 11, 32],
+    // north wall on 1912 Sanborn 26's front edge (4 m in from the Euclid line), centred on the north
+    // front, chapel to tower; the 1881 Plate 5 footprint agrees within ±5 m
+    plate: [1069, 776],
+    kind: 'mesh',
+    size: [35.3, 23.9, 29.9],
+    model: {
+      url: '/models/st-pauls.glb',
+      // north front, chapel to tower, 0.97 units ↔ 115 ft (35.1 m) on 1912 Sanborn 26; then the tower
+      // is 23.8 m (Sanborn: 75 ft, 22.9 m) and the nave eaves 7.2 m (Sanborn: 24 ft, 7.3 m)
+      scale: 36.1,
+      rotation: Math.PI, // the model's front is the Euclid gable: faces north; its +x side is E. 40th
+      provenance: { front: 'photographed', sideNegX: 'invented', sidePosX: 'invented', roof: 'inferred', rear: 'invented' },
+      note: 'Mesh: Tripo image-to-3D spike P1, unscored, not a reconstruction. Tripo laid the ¾ view out flat. The church survives: its sides are invented in this model, not unknown.',
+      looks: { map: '/models/st-pauls-basecolor.jpg', normalMap: '/models/st-pauls-normal.jpg' },
+    },
     status: 'Survives (converted 2021)',
     ledger: [
-      { surface: 'Footprint', state: 'inferred', basis: '1881 Plate 5; 1912 Sanborn 26' },
-      { surface: 'Tower + nave', state: 'inferred', basis: 'Liebich stereograph CPL 9222' },
+      { surface: 'Euclid gable, tower, E. 40th range', state: 'photographed', basis: 'CPL 9222 (Liebich stereograph, ¾) → GPT clean → Tripo P1; drawn as one flat front' },
+      { surface: 'Tower top detail', state: 'invented', basis: 'Silhouette photographed; spirelet and pinnacle detail behind branches in 9222' },
+      { surface: 'East chapel and its spire', state: 'invented', basis: 'Mostly behind trees in 9222; past its silhouette, GPT’s' },
+      { surface: 'Main-gable porch', state: 'invented', basis: 'Behind the lamp post and a tree in 9222' },
+      { surface: 'Sides + rear', state: 'invented', basis: 'Invented in this model only: the building stands and can be photographed (CPL 2021 series)' },
+      { surface: 'Walls', state: 'inferred', basis: 'Sandstone; the colour reads too yellow and can be checked on site' },
+      { surface: 'Scale', state: 'inferred', basis: '1912 Sanborn 26 (tower 75 ft, eaves 24 ft); model is ~75% of the church’s depth' },
     ],
     sources: [{ label: 'St. Paul’s, Liebich stereograph', id: 'p4014coll18:9222' }],
   },
