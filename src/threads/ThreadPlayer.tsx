@@ -130,7 +130,7 @@ export function ThreadMenu({ onClose, onPick }: { onClose: () => void; onPick: (
       <div className="inner" onClick={(e) => e.stopPropagation()}>
         <button className="x" onClick={onClose} aria-label="Close">×</button>
         <h2>Threads</h2>
-        <p className="lede">Pick your own way in. Each one is a short chapter, under two minutes.</p>
+        <p className="lede">Pick your own way in. Each one is a short chapter, about two minutes or less.</p>
         <ol>
           {THREADS.map((t) => (
             <li key={t.id}>
