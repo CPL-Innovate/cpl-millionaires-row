@@ -44,7 +44,9 @@ export const player = {
     const n = Math.max(0, Math.min(kit.stops.length - 1, i));
     sound.threadReset(); // cut what the previous stop was playing; the beds come back via the rig
     kit.seeking = true;
-    kit.tl.seek(`s${n}`, false);
+    // land just past the stop's start: gsap reverts zero-duration sets sitting exactly on the
+    // playhead when it arrives there backwards (a replay would lose the stop's opening state)
+    kit.tl.seek(kit.tl.labels[`s${n}`] + 0.001, false);
     kit.seeking = false;
     threadStore.set({ ended: false });
     this.sync();

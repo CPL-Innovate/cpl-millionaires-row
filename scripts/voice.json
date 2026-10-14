@@ -1,0 +1,20 @@
+{
+ "voice": "hpp4J3VqNfWAUOO0d1Us",
+ "voice_name": "Bella (ElevenLabs premade): warm, calm, American",
+ "model": "eleven_multilingual_v2",
+ "note": "Listen thread narration (threads-scripts §10). Wilson's words in listen-5 need L&GH rights clearance before this ships.",
+ "lines": {
+  "listen-1": "Close your eyes, or don't. This is Euclid Avenue at E. 40th, October 1888.",
+  "listen-2": "The street was paved in Medina sandstone blocks in 1873. People who lived here remembered the sound of hooves on it, and carriages going by at night.",
+  "listen-3": "Listen east. The horsecars came up from Prospect and turned back onto Euclid right about here. West of this corner, no streetcars were allowed.",
+  "listen-4": "That church tower has bells. What you're hearing is them not ringing. They stayed silent while the old man across the street was alive.",
+  "listen-5": "On the south side, at 3730, the Germania Orchestra played for nearly six hundred guests. A florist who danced to it remembered a young man crossing the floor: \"This is our waltz.\"",
+  "listen-6": "Sunday at St. Paul's: prancing horses, liveried coachmen, the girls from the Mittleberger School. On Easter, latecomers were turned away at the door.",
+  "listen-7": "Behind the Brush house, a wheel fifty-six feet across turned all day. Nobody wrote down what it sounded like. So we've left it silent.",
+  "listen-8a": "Eighteen ninety.",
+  "listen-8b": "Nineteen fifteen.",
+  "listen-8c": "Nineteen fifty-two.",
+  "listen-8d": "Today.",
+  "listen-9": "Wilson's old radio station made rain by pouring sand through a tea strainer. Most of what you just heard is our best guess. The silence wasn't."
+ }
+}
