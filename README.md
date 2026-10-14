@@ -251,8 +251,8 @@ public/
 ## Next steps (pinned)
 
 Where things stand (2026-10-14): seven modelled houses (Everett, Stager-Beckwith, Rockefeller,
-Wade Sr., Randall Wade, St. Paul's, Brush) in Pencil / Watercolour / Texture with per-house watercolour tuning (Everett and
-Rockefeller tuned and saved in `public/settings.json`); Painterly default with an 1888 toggle; the
+Wade Sr., Randall Wade, St. Paul's, Brush) in Pencil / Watercolour / Texture with per-house watercolour tuning (Everett,
+Rockefeller and Wade Sr. tuned and saved in `public/settings.json`); Painterly default with an 1888 toggle; the
 Atlas as the default map, beside the flat 1881 plate; four dot-painted carriages on Euclid (ink
 outlines in the Atlas); three
 station cameras registered to their photographs; gathering dots and developing photos; frame-rate
@@ -261,8 +261,8 @@ readout and a Light setting; generated sound and music with volume sliders. In p
 1. **The Atlas, past the prototype:** trace the rest of the plate's lots; ink shields for the
    station and story pins; a compact station bar in the Atlas (it covers the foreground); turn the
    lot strip to match the east-facing view; check Sepia, Cyanotype and 1888 in the Atlas.
-2. **Tune and review the remaining houses' watercolour** (Stager-Beckwith, Wade Sr., and the new
-   Randall Wade, St. Paul's and Brush, which run on the defaults), then Save as project default. Wade Sr.'s roof can't be found by colour (its walls and roof are
+2. **Tune and review the remaining houses' watercolour** (Stager-Beckwith, and the new Randall
+   Wade, St. Paul's and Brush, which run on the defaults), then Save as project default. Wade Sr.'s roof can't be found by colour (its walls and roof are
    both neutral), so its roof settings do little.
 3. **Check the new spikes before anyone scores them:** Wade Sr. against the IoA ch04-48
    lithograph (the façade break; the rear wing is ~15 m short); a crop-first re-run for
