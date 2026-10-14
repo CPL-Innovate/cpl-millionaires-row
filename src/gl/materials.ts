@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { U } from './uniforms';
+import { U, type HouseFx } from './uniforms';
 import { WASH_PARAMS, WASH_DEFAULTS } from '../settings/schema';
 
 // per-house watercolour uniforms (uW_<key>); update them with setWash()
@@ -84,6 +84,18 @@ float paperGrain(vec2 fragCoord) {
 }
 `;
 
+const FXGLSL = /* glsl */ `
+// Threads: a house dissolving into construction lines (uGone 0 → 0.5) and draining away (→ 1),
+// in blotches of the same noise family as the street reveal
+#if FX
+uniform float uGone;
+uniform float uGlow;
+uniform float uFlicker;
+uniform vec3 uGlowColor;
+float goneKey(vec3 w) { return noise2(w.xz * 0.045 + w.y * 0.035) * 0.8 + hash2(floor(w.xz * 0.7) + floor(w.y * 0.7)) * 0.2; }
+#endif
+`;
+
 // ---------------------------------------------------------------------------------------------
 // Surfaces: massing blocks and the image-to-3D meshes. Provenance state is a uniform (0
 // photographed, 1 inferred, 2 invented) or, for a mesh, derived per fragment from its
@@ -97,13 +109,15 @@ export function makeSurfaceMaterial(opts: {
   mesh?: { provenance: MeshProvenance; box: THREE.Box3 };
   map?: THREE.Texture | null;
   looks?: { map: THREE.Texture; normalMap: THREE.Texture; wash?: Record<string, number> };
+  fx?: HouseFx; // Threads: this house's dissolve and window glow
 }) {
   return new THREE.ShaderMaterial({
     transparent: true,
     side: THREE.DoubleSide,
-    defines: { MESH: opts.mesh ? 1 : 0, USE_PHOTOMAP: opts.map ? 1 : 0, LOOKS: opts.looks ? 1 : 0 },
+    defines: { MESH: opts.mesh ? 1 : 0, USE_PHOTOMAP: opts.map ? 1 : 0, LOOKS: opts.looks ? 1 : 0, FX: opts.fx ? 1 : 0 },
     uniforms: {
       ...U,
+      ...(opts.fx ?? {}),
       ...(opts.mesh ? provUniforms(opts.mesh.provenance, opts.mesh.box) : {}),
       uState: { value: opts.state ?? 1 },
       uMap: { value: opts.map ?? null },
@@ -230,8 +244,14 @@ export function makeSurfaceMaterial(opts: {
       }
       #endif
 
+
+      ${FXGLSL}
       void main() {
         if (shown(vWorld.xz) < 0.5) discard;
+        #if FX
+          float gk = goneKey(vWorld);
+          if (gk < uGone * 2.0) discard;
+        #endif
 
         vec3 n = normalize(vNormalW);
         if (!gl_FrontFacing) n = -n;
@@ -315,6 +335,27 @@ export function makeSurfaceMaterial(opts: {
         }
         #endif
 
+        #if FX
+        {
+          // a pencil rim where the surface is being rubbed out
+          col = mix(col, uPencil, (1.0 - smoothstep(0.0, 0.035, gk - uGone * 2.0)) * step(0.001, uGone) * 0.65);
+          // window glow: light where the photo-derived texture is dark, on the street front only
+          if (uGlow > 0.001) {
+            float lumG = 0.5;
+            #if USE_PHOTOMAP
+              lumG = dot(texture2D(uMap, vUv).rgb, vec3(0.299, 0.587, 0.114));
+            #endif
+            float front = smoothstep(0.3, 0.6, normalize(vNormalO).z) * step(1.2, vWorld.y);
+            float win = 1.0 - smoothstep(0.09, 0.22, lumG);
+            float cell = hash2(floor(vWorld.xy * 0.8) + floor(vWorld.zy * 0.8));
+            float fl = 1.0 - uFlicker * 0.3 * (0.5 + 0.5 * sin(uTime * (7.0 + cell * 5.0) + cell * 6.28));
+            float k = clamp(win * front * uGlow * fl, 0.0, 1.0);
+            col = mix(col, col * uGlowColor * 1.5 + uGlowColor * 0.1, uGlow * 0.18 * front);
+            col = mix(col, uGlowColor, k);
+            gNightKeep = k;
+          }
+        }
+        #endif
         gl_FragColor = vec4(col, alpha);
         #include <colorspace_fragment>
       }
@@ -326,13 +367,14 @@ export function makeSurfaceMaterial(opts: {
 // Lines: building edges, trees, fences, the windmill. Hand wobble in the vertex shader; dashed
 // for invented; faded by distance.
 // ---------------------------------------------------------------------------------------------
-export function makeLineMaterial(opts: { state?: number; mesh?: { provenance: MeshProvenance; box: THREE.Box3 }; looks?: boolean; weight?: number }) {
+export function makeLineMaterial(opts: { state?: number; mesh?: { provenance: MeshProvenance; box: THREE.Box3 }; looks?: boolean; weight?: number; fx?: HouseFx }) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    defines: { MESH: opts.mesh ? 1 : 0, LOOKS: opts.looks ? 1 : 0 },
+    defines: { MESH: opts.mesh ? 1 : 0, LOOKS: opts.looks ? 1 : 0, FX: opts.fx ? 1 : 0 },
     uniforms: {
       ...U,
+      ...(opts.fx ?? {}),
       ...(opts.mesh ? provUniforms(opts.mesh.provenance, opts.mesh.box) : {}),
       uState: { value: opts.state ?? 1 },
       uWeight: { value: opts.weight ?? 1 },
@@ -370,8 +412,13 @@ export function makeLineMaterial(opts: { state?: number; mesh?: { provenance: Me
       #if MESH
       ${PROV}
       #endif
+      ${FXGLSL}
       void main() {
         if (shown(vWorld.xz) < 0.5) discard;
+        #if FX
+          float gk = goneKey(vWorld);
+          if (gk < (uGone - 0.5) * 2.0) discard;
+        #endif
         float state = uState;
         #if MESH
         {
@@ -399,6 +446,14 @@ export function makeLineMaterial(opts: { state?: number; mesh?: { provenance: Me
         a *= 1.0 - smoothstep(120.0, 380.0, vDepth);
         #if LOOKS
           a *= uLookLines;
+        #endif
+        #if FX
+        {
+          // construction lines: once the surface goes, the edges stay as faint dashes
+          float cl = smoothstep(0.0, 0.5, uGone);
+          col = mix(col, uFaint, cl * 0.45);
+          a = mix(a, 0.8 * step(0.4, fract(vDist * 1.4)), cl);
+        }
         #endif
         gl_FragColor = vec4(col, a);
         #include <colorspace_fragment>

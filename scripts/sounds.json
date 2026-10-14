@@ -286,5 +286,184 @@
   "length_ms": 150000,
   "use": "Background music, 1888",
   "prompt": "Sparse solo piano played on an old upright in a quiet room: a slow, hushed waltz in 3/4 at about 56 bpm, in the manner of an 1888 salon piece. Cool late-October melancholy, bare and restrained: long sustained low chords, a few wistful melody notes, much silence between phrases. Begins and ends softly on the same chord so it can loop. Instrumental, no vocals, no percussion, no modern instruments."
+ },
+ {
+  "file": "bells-peal",
+  "vars": 1,
+  "use": "Silent Bells: the 1876 peal and the 1890 return",
+  "duration": 20.0,
+  "loop": false,
+  "influence": 0.55,
+  "prompt": "A full peal of large church bells ringing out from a stone Gothic tower at night, several bronze bells swinging in changes, rich ringing overtones and long reverberation across a quiet snowy residential avenue. 1870s, outdoors. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "hammer-far",
+  "vars": 1,
+  "use": "Vanished stop 2: a house going up somewhere",
+  "duration": 10.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "Distant carpenters at work on a house frame far away: sparse hammer blows on nails, a mallet on stone, a hand saw, outdoors, 1860s, faint and spacious. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "band-far",
+  "vars": 1,
+  "use": "Vanished stop 3 / Silent Bells stop 4: a band (muffled by the engine for 'through glass')",
+  "duration": 24.0,
+  "loop": true,
+  "influence": 0.45,
+  "prompt": "A brass and reed military band playing a lively 19th-century march, heard from across a large lawn through closed windows, warm and muffled, steady, no applause. No voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "streetcar-rails",
+  "vars": 1,
+  "use": "Vanished stop 4, Listen 1915, The Line stop 7",
+  "duration": 12.0,
+  "loop": false,
+  "influence": 0.55,
+  "prompt": "An early electric streetcar approaching and passing on steel rails: heavy iron wheels rumbling and clacking over rail joints, the hum of the motor, the overhead trolley wire hissing, one clang of its gong, 1915 city street. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "traffic-1920s",
+  "vars": 1,
+  "use": "Vanished stop 5: traffic thickens and gets mechanical",
+  "duration": 24.0,
+  "loop": true,
+  "influence": 0.45,
+  "prompt": "A busy downtown avenue in the 1920s: early automobile engines puttering and idling, rubber tyres on brick, a few bulb horns honking, a streetcar rumbling past, distant crowd hubbub. Continuous. No music.",
+  "tier": "threads"
+ },
+ {
+  "file": "traffic-today",
+  "vars": 1,
+  "use": "Listen stop 8: today's traffic (stand-in until a real recording is made at the corner)",
+  "duration": 20.0,
+  "loop": true,
+  "influence": 0.45,
+  "prompt": "Modern city avenue traffic today from the sidewalk: cars and a city bus passing, tyres on asphalt, a distant siren, steady urban hum. Continuous. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "thud-soft",
+  "vars": 1,
+  "use": "Vanished stop 6: one soft thud per demolition",
+  "duration": 2.0,
+  "loop": false,
+  "influence": 0.6,
+  "prompt": "A single soft, deep, muffled thud, like a heavy leather book set down on a felt table, short decay. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "crowd-arena",
+  "vars": 1,
+  "use": "Afterlives stop 4 / Listen 1952: the public finally gets in",
+  "duration": 10.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "The roar of a huge crowd of young people cheering and screaming inside a packed indoor arena in the 1950s, echoing hall, a saxophone honking faintly in the distance. No singing.",
+  "tier": "threads"
+ },
+ {
+  "file": "crowd-sunday",
+  "vars": 1,
+  "use": "Listen stop 6: Sunday morning at St. Paul's",
+  "duration": 16.0,
+  "loop": false,
+  "influence": 0.45,
+  "prompt": "A crowd gathering outside a stone church on a Sunday morning in the 1880s: soft murmuring of many voices, horse-drawn carriages pulling up, carriage doors shutting, horses stamping and snorting on stone pavement, harness jingling. No bells, no music.",
+  "tier": "threads"
+ },
+ {
+  "file": "crowd-parade",
+  "vars": 1,
+  "use": "The Line stop 7: the 1908 Labor Day parade",
+  "duration": 16.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "A large labor parade marching past on a city avenue in 1908: snare drums of a drum corps, a brass band playing a march, hundreds of marching footsteps, a cheering crowd along the sidewalk. Outdoors.",
+  "tier": "threads"
+ },
+ {
+  "file": "crowd-snow",
+  "vars": 1,
+  "use": "The Starting Line stop 4: thousands along the fences",
+  "duration": 14.0,
+  "loop": true,
+  "influence": 0.45,
+  "prompt": "Thousands of spectators lining a snowy avenue, excited murmuring and cheering muffled by falling snow, occasional shouts, sleigh bells in the distance, cold winter afternoon in the 1880s. No music.",
+  "tier": "threads"
+ },
+ {
+  "file": "household",
+  "vars": 1,
+  "use": "Who's Missing stop 3: a household heard from outside",
+  "duration": 16.0,
+  "loop": true,
+  "influence": 0.45,
+  "prompt": "Faint sounds of a busy Victorian household kitchen heard from outside through a wall: pots and pans clinking, a kettle, a door opening and closing, a broom, very muffled and distant. No music, no speech.",
+  "tier": "threads"
+ },
+ {
+  "file": "hum-electric",
+  "vars": 1,
+  "use": "Lit by Wind stop 4: the Brush house's electric light",
+  "duration": 10.0,
+  "loop": true,
+  "influence": 0.5,
+  "prompt": "A very quiet, steady low electrical hum of an old dynamo and electric arc lamps, faint buzzing, constant. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "hoof-stone",
+  "vars": 1,
+  "use": "Listen stop 2 / The Line stop 2: hooves on sandstone, iron tyres on stone",
+  "duration": 14.0,
+  "loop": false,
+  "influence": 0.55,
+  "prompt": "A single horse-drawn carriage on a street paved with stone blocks: the horse walking slowly with iron shoes clopping on sandstone, iron-rimmed wooden wheels grinding on the stone, approaching from the left, passing close, fading away to the right. 1880s, quiet street. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "sleigh-go",
+  "vars": 1,
+  "use": "The Starting Line stop 5: the sleighs launch",
+  "duration": 10.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "A pack of horse-drawn sleighs launching at full trot on packed snow: dozens of sleigh bells jangling, hooves pounding snow, runners hissing, drivers' whips cracking, a cheering crowd, rushing past and away. 1880s.",
+  "tier": "threads"
+ },
+ {
+  "file": "flag-flap",
+  "vars": 1,
+  "use": "The Starting Line stop 2: red flags go up",
+  "duration": 6.0,
+  "loop": false,
+  "influence": 0.5,
+  "prompt": "A cloth flag on a pole snapping and flapping in a cold wind, outdoors, close. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "snow-wind",
+  "vars": 1,
+  "use": "The Starting Line: winter bed",
+  "duration": 24.0,
+  "loop": true,
+  "influence": 0.45,
+  "prompt": "Soft cold winter wind with gently falling snow over a quiet avenue, hushed, muffled, a few distant sleigh bells now and then. No music, no voices.",
+  "tier": "threads"
+ },
+ {
+  "file": "waltz-glass",
+  "vars": 1,
+  "use": "Listen stop 5: a waltz through glass (a generated Viennese-style waltz, not the Blue Danube itself)",
+  "kind": "music",
+  "length_ms": 45000,
+  "prompt": "A graceful Viennese-style waltz in three-four time, nineteenth-century ballroom music, played by a small salon orchestra of strings, flute and harp, lilting and romantic, sounding muffled and soft as if heard from the street through a closed window.",
+  "tier": "threads"
  }
 ]

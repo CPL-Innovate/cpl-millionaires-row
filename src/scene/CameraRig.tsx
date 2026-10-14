@@ -36,9 +36,10 @@ interface Props {
   focusLot: number; // Atlas: fly to this lot (−1: none)
   stationId: string;
   onArrive: (s: Station) => void;
+  thread?: boolean; // a thread has the camera (threads/ThreadStage); hand it back when it ends
 }
 
-export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Props) {
+export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive, thread = false }: Props) {
   const { camera, gl } = useThree();
   const controls = useRef<MapControlsImpl>(null);
   const look = useRef({ yaw: 0, pitch: 0 });
@@ -119,8 +120,44 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
     };
   }, [gl, mode]);
 
+  // a thread ends: the walker picks up wherever its camera stopped (eased back to standing height),
+  // or the camera lifts back to the map framing and the controls return
+  const skipTransition = useRef(false);
+  const wasThread = useRef(false);
+  useEffect(() => {
+    if (thread) { wasThread.current = true; tweening.current = true; return; }
+    if (!wasThread.current) return;
+    wasThread.current = false;
+    skipTransition.current = true; // the transitions effect below re-runs on this change; it mustn't move the camera
+    prevMode.current = mode;
+    const tl = gsap.timeline();
+    if (mode === 'street') {
+      const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+      look.current = { yaw: e.y, pitch: THREE.MathUtils.clamp(e.x, -0.9, 1.1) };
+      eye.current = camera.position.y;
+      camera.rotation.set(look.current.pitch, look.current.yaw, 0, 'YXZ');
+      tweening.current = false;
+      tl.to(eye, { current: EYE, duration: Math.min(3, 0.6 + Math.abs(eye.current - EYE) / 10), ease: 'power2.inOut' });
+      tl.to(look.current, { pitch: THREE.MathUtils.clamp(look.current.pitch, -0.25, 0.35), duration: 1.5, ease: 'power1.inOut' }, 0);
+    } else {
+      const f = FRAMES[mapStyle];
+      mapTarget.copy(f.target);
+      lookTarget.copy(camera.position).add(new THREE.Vector3(0, 0, -10).applyQuaternion(camera.quaternion));
+      tl.to(U.uRevealRadius, { value: 0, duration: 1.2, ease: 'power2.in' }, 0)
+        .to(U.uAtlas, { value: mapStyle === 'atlas' ? 1 : 0, duration: 1.2, ease: 'power1.inOut' }, 0)
+        .to(camera.position, { x: f.pos.x, y: f.pos.y, z: f.pos.z, duration: 2.2, ease: 'power2.inOut' }, 0.2)
+        .to(lookTarget, { x: f.target.x, y: f.target.y, z: f.target.z, duration: 2.2, ease: 'power2.inOut' }, 0.2)
+        .set(U.uStreet, { value: 0 });
+      tl.eventCallback('onUpdate', () => camera.lookAt(lookTarget));
+      tl.eventCallback('onComplete', () => { tweening.current = false; setMapControls(true); });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread]);
+
   // transitions: map → street (descend + draw outward), street → station, street → map
   useEffect(() => {
+    if (thread) return;
+    if (skipTransition.current) { skipTransition.current = false; return; }
     if (mode === 'map' && prevMode.current === 'map') return; // first mount: already framed on the plate
     const station = STATIONS.find((s) => s.id === stationId) ?? STATIONS[0];
     const to = new THREE.Vector3(...station.position);
@@ -195,7 +232,7 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
       tl.kill();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, stationId]);
+  }, [mode, stationId, thread]);
 
   // dev: set a street pose by hand (photo matching): __pose([x, y, z], [tx, ty, tz])
   useEffect(() => {
@@ -226,7 +263,7 @@ export function CameraRig({ mode, mapStyle, focusLot, stationId, onArrive }: Pro
     camera.rotation.set(look.current.pitch, look.current.yaw, 0, 'YXZ');
   });
 
-  if (!(mapControls && mode === 'map')) return null;
+  if (!(mapControls && mode === 'map') || thread) return null;
   if (mapStyle === 'plate')
     return <MapControls key="plate" ref={controls} target={mapTarget} enableRotate={false} minDistance={140} maxDistance={720} screenSpacePanning={false} />;
   return (

@@ -15,6 +15,10 @@ import { PerfProbe } from './ui/Perf';
 import { sound } from './audio/engine';
 import { AudioDirector } from './audio/AudioDirector';
 import { GeneratorPanel } from './ui/GeneratorPanel';
+import { ThreadStage } from './threads/ThreadStage';
+import { ThreadMenu, ThreadPlayer } from './threads/ThreadPlayer';
+import { player } from './threads/player';
+import { useThread } from './threads/store';
 import './App.css';
 
 const LEGEND = [
@@ -40,6 +44,8 @@ U.uLookFrom.value = U.uLookTo.value = initialLook;
 U.uLookLines.value = LOOKS[initialLook].lines;
 const initialMapStyle: MapStyle = params.get('map') === 'plate' ? 'plate' : 'atlas'; // ?map=plate opens on the flat plate
 const initialStation = STATIONS.some((s) => s.id === params.get('station')) ? params.get('station')! : null;
+// ?thread=silent-bells&stop=3&at=4&hold opens a thread (at a stop, some seconds in, paused) — for links and screenshots
+const initialThread = params.get('thread');
 settings.loadProject();
 
 const SOUND = 'mr-sound-v1';
@@ -68,6 +74,9 @@ export default function App() {
   const [fps, setFps] = useState(params.has('fps'));
   const [soundOn, setSoundOn] = useState(readSound);
   const [volume, setVolume] = useState(readVolume);
+  const [menu, setMenu] = useState(false);
+  const tv = useThread();
+  const threading = !!tv.id;
   const prevMode = useRef<Mode>('map');
   const lastErase = useRef(0);
   const over = cfg.colors[palette];
@@ -150,6 +159,28 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Threads: picking one clears the street's own cards; leaving hands the camera back
+  const startThread = (id: string, o: { stop?: number; hold?: boolean; at?: number } = {}) => {
+    setMenu(false);
+    setBeat(null);
+    setArrived(null);
+    setGen(false);
+    player.start(id, o);
+  };
+  useEffect(() => {
+    player.onExit = (scene) => {
+      U.uEvidence.value = evidence;
+      if (scene === 'street') setMode('street');
+      else { setMapStyle('atlas'); setMode('map'); }
+    };
+  }, [evidence]);
+  useEffect(() => {
+    if (!initialThread) return;
+    const t = setTimeout(() => startThread(initialThread, { stop: Math.max(0, Number(params.get('stop') ?? 1) - 1), hold: params.has('hold'), at: Number(params.get('at') ?? 0) }), 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const station = STATIONS.find((s) => s.id === stationId)!;
   const atStation = arrived === stationId && mode === 'street';
   const activeBeat = BEATS.find((b) => b.id === beat) ?? null;
@@ -198,20 +229,21 @@ export default function App() {
   };
 
   return (
-    <div className={`app ${mode}${atlasOn ? ' atlas' : ''}`}>
+    <div className={`app ${mode}${atlasOn ? ' atlas' : ''}${threading ? ' threading' : ''}`}>
       <Canvas flat dpr={QUALITIES.find((q) => q.id === quality)!.dpr} camera={{ fov: 50, near: 0.3, far: 2000, position: [-40, 440, 120] }} gl={{ antialias: true, preserveDrawingBuffer: import.meta.env.DEV }}>
         <color attach="background" args={[paper]} />
         <Suspense fallback={null}>
           <World />
           <PlateLabels onPick={goStation} show={mode === 'map' && mapStyle === 'plate'} />
-          <AtlasLabels show={atlasOn} />
-          <BeatPins onPick={(id) => setBeat(beat === id ? null : id)} active={beat} show={mode === 'street'} />
+          <AtlasLabels show={threading ? tv.scene === 'atlas' : atlasOn} />
+          <BeatPins onPick={(id) => setBeat(beat === id ? null : id)} active={beat} show={mode === 'street' && !threading} />
         </Suspense>
         <Suspense fallback={null}>
           {atStation && station.photo && <PhotoGhost station={station} opacity={photo} />}
         </Suspense>
-        <CameraRig mode={mode} mapStyle={mapStyle} focusLot={selLot} stationId={stationId} onArrive={onArrive} />
-        <AtlasPicker active={atlasOn} onHover={onHoverLot} onPick={onPickLot} />
+        <CameraRig mode={mode} mapStyle={mapStyle} focusLot={selLot} stationId={stationId} onArrive={onArrive} thread={threading} />
+        <AtlasPicker active={atlasOn && !threading} onHover={onHoverLot} onPick={onPickLot} />
+        <ThreadStage />
         {fps && <PerfProbe />}
         <AudioDirector />
       </Canvas>
@@ -327,6 +359,7 @@ export default function App() {
       {fps && <div id="perf-hud" className="perf-hud" />}
 
       <nav className="stations">
+        <button className={`mode threads-btn ${menu ? 'on' : ''}`} onClick={() => setMenu(true)}>Threads</button>
         <button className={`mode ${mode === 'map' && mapStyle === 'atlas' ? 'on' : ''}`} onClick={() => { setMapStyle('atlas'); setMode('map'); }}>Atlas</button>
         <button className={`mode ${mode === 'map' && mapStyle === 'plate' ? 'on' : ''}`} onClick={() => { setMapStyle('plate'); setMode('map'); }}>1881 plate</button>
         {STATIONS.map((s) => (
@@ -335,6 +368,9 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      <ThreadPlayer soundOn={soundOn} onSound={() => toggleSound(true)} />
+      {menu && !threading && <ThreadMenu onClose={() => setMenu(false)} onPick={(id) => startThread(id)} />}
 
       {gen && (
         <GeneratorPanel

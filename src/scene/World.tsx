@@ -5,7 +5,7 @@ import { useGLTF } from '@react-three/drei';
 import { BUILDINGS, PLATE, STATIONS, plateToWorld, euclidCentreZ, EUCLID, type Building, type MeshModel } from '../data/site';
 import { makeDabMaterial, makeGroundMaterial, makeLineMaterial, makeSurfaceMaterial, setWash } from '../gl/materials';
 import { elm, massing, treeParams, windmillRotor, windmillTower } from '../gl/geometry';
-import { U } from '../gl/uniforms';
+import { U, houseFx } from '../gl/uniforms';
 import { dabGeo, rand } from './dabs';
 import { Carriages } from './Carriages';
 import { AtlasTrees } from './AtlasTrees';
@@ -89,16 +89,16 @@ function MeshHouse({ b }: { b: Building }) {
       geo,
       map,
       edges: edgesOf(geo, 38),
-      line: makeLineMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, looks: !!model.looks, weight: 0.55 }),
+      line: makeLineMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, looks: !!model.looks, weight: 0.55, fx: houseFx(b.id) }),
       contact: contactDots(geo, x, z, s, rot),
     };
-  }, [gltf, model, x, z, s, rot]);
+  }, [gltf, model, x, z, s, rot, b.id]);
   useEffect(() => () => contact.dispose(), [contact]);
   const contactMat = useMemo(() => makeDabMaterial({ sway: 0.15, solid: true, role: 'shrub' }), []);
   return (
     <>
       <group position={[x, 0, z]} rotation-y={rot} scale={s}>
-        {model.looks ? <LooksSurface geo={geo} map={map} model={model} houseId={b.id} /> : <PencilSurface geo={geo} map={map} model={model} />}
+        {model.looks ? <LooksSurface geo={geo} map={map} model={model} houseId={b.id} /> : <PencilSurface geo={geo} map={map} model={model} houseId={b.id} />}
         <lineSegments geometry={edges} material={line} renderOrder={2} />
       </group>
       <points geometry={contact} material={contactMat} renderOrder={2} />
@@ -106,14 +106,14 @@ function MeshHouse({ b }: { b: Building }) {
   );
 }
 
-type SurfaceProps = { geo: THREE.BufferGeometry; map: THREE.Texture | null; model: MeshModel };
+type SurfaceProps = { geo: THREE.BufferGeometry; map: THREE.Texture | null; model: MeshModel; houseId: string };
 
-function PencilSurface({ geo, map, model }: SurfaceProps) {
-  const surf = useMemo(() => makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map }), [geo, map, model]);
+function PencilSurface({ geo, map, model, houseId }: SurfaceProps) {
+  const surf = useMemo(() => makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, fx: houseFx(houseId) }), [geo, map, model, houseId]);
   return <mesh geometry={geo} material={surf} renderOrder={1} />;
 }
 
-function LooksSurface({ geo, map, model, houseId }: SurfaceProps & { houseId: string }) {
+function LooksSurface({ geo, map, model, houseId }: SurfaceProps) {
   const [lookMap, normalMap] = useLoader(THREE.TextureLoader, [model.looks!.map, model.looks!.normalMap]);
   const surf = useMemo(() => {
     // glTF UVs: no flip
@@ -121,8 +121,8 @@ function LooksSurface({ geo, map, model, houseId }: SurfaceProps & { houseId: st
     lookMap.colorSpace = THREE.SRGBColorSpace;
     lookMap.anisotropy = normalMap.anisotropy = 8;
     lookMap.needsUpdate = normalMap.needsUpdate = true;
-    return makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, looks: { map: lookMap, normalMap } });
-  }, [geo, map, model, lookMap, normalMap]);
+    return makeSurfaceMaterial({ mesh: { provenance: model.provenance, box: geo.boundingBox! }, map, looks: { map: lookMap, normalMap }, fx: houseFx(houseId) });
+  }, [geo, map, model, lookMap, normalMap, houseId]);
   // this house's watercolour settings (Generator → Watercolour · per house), live
   const saved = useSettings().houses?.[houseId];
   useEffect(() => setWash(surf, { ...washDefaultsFor(model.neutralWalls), ...saved }), [surf, saved, model.neutralWalls]);
@@ -411,13 +411,19 @@ function StreetKit() {
   const crownMat = useMemo(() => makeDabMaterial({ sway: 1, solid: true, role: 'crown' }), []);
   const woodMat = useMemo(() => makeDabMaterial({ sway: 0.6, solid: true, role: 'bark' }), []);
   const kitMat = useMemo(() => makeDabMaterial({ solid: true, role: 'kit' }), []);
+  // the lamp glass is a light: the Threads' night grade leaves it alone
+  const glowMat = useMemo(() => {
+    const m = makeDabMaterial({ solid: true, role: 'kit' });
+    m.uniforms.uNoNight = { value: 1 };
+    return m;
+  }, []);
   return (
     <group>
       <points geometry={wood} material={woodMat} renderOrder={2} />
       <points geometry={crowns} material={crownMat} renderOrder={2} />
       <AtlasTrees data={atlasTrees} />
       <points geometry={iron} material={kitMat} renderOrder={2} />
-      <points geometry={glow} material={kitMat} renderOrder={2} />
+      <points geometry={glow} material={glowMat} renderOrder={2} />
       <points geometry={stone} material={kitMat} renderOrder={2} />
     </group>
   );
@@ -500,6 +506,8 @@ function Carpet() {
 
 function Windmill() {
   const rotor = useRef<THREE.Group>(null);
+  const root = useRef<THREE.Group>(null);
+  const fx = houseFx('windmill');
   const { tower, blades, mat } = useMemo(() => {
     const r = rand(29);
     const t: number[] = [], b: number[] = [];
@@ -509,11 +517,13 @@ function Windmill() {
   }, []);
   useFrame((_, dt) => {
     if (rotor.current) rotor.current.rotation.z += dt * 0.35;
+    // Threads: taken away (uGone past 0.5)
+    if (root.current) root.current.visible = fx.uGone.value < 0.5;
   });
   const brush = BUILDINGS.find((b) => b.id === 'brush')!;
   const [bx, bz] = plateToWorld(brush.plate[0], brush.plate[1]);
   return (
-    <group position={[bx - 22, 0, bz - 30]}>
+    <group ref={root} position={[bx - 22, 0, bz - 30]}>
       <points geometry={tower} material={mat} renderOrder={2} />
       <group ref={rotor} position={[0, 19, 0.8]}>
         <points geometry={blades} material={mat} renderOrder={2} />

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import './night';
 import { makeLotTexture } from './lots';
 import { PALETTES, type PaletteId } from '../palettes';
 import { LIVE_KEYS } from '../settings/schema';
@@ -79,6 +80,9 @@ export const U = {
   uLookTo: { value: 0 },
   uLookT: { value: 1 },
   uLookLines: { value: 1 }, // pencil edge lines on the Everett mesh, per look
+  // Threads: night/dusk grade (gl/night.ts), 0 = day
+  uNight: { value: 0 },
+  uNightTint: { value: new THREE.Color(0.17, 0.2, 0.34) },
 };
 
 // live generator parameters: one shared uniform per key, named uG_<key>
@@ -109,3 +113,18 @@ export function applyPalette(id: PaletteId, over: PaletteOverride = {}) {
 applyPalette('graphite');
 
 if (import.meta.env.DEV) (window as unknown as { __U: typeof U }).__U = U;
+
+// Threads: per-house effects. gone: 0 standing, 0.5 construction lines only, 1 nothing left (and
+// back again to build a house up); glow: warm light in the openings the photograph shows dark;
+// flicker: gas (1) or electric (0) light.
+export interface HouseFx { uGone: { value: number }; uGlow: { value: number }; uFlicker: { value: number }; uGlowColor: { value: THREE.Color } }
+const fx = (): HouseFx => ({ uGone: { value: 0 }, uGlow: { value: 0 }, uFlicker: { value: 1 }, uGlowColor: { value: new THREE.Color(1.0, 0.72, 0.36) } });
+const FX = new Map<string, HouseFx>();
+export function houseFx(id: string) {
+  let f = FX.get(id);
+  if (!f) { f = fx(); FX.set(id, f); }
+  return f;
+}
+export function resetHouseFx() {
+  for (const f of FX.values()) { f.uGone.value = 0; f.uGlow.value = 0; f.uFlicker.value = 1; f.uGlowColor.value.setRGB(1.0, 0.72, 0.36); }
+}

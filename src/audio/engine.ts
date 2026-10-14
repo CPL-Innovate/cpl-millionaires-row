@@ -4,6 +4,14 @@
 // the mix lives here. Nothing loads or plays until the visitor turns sound on.
 
 type Vec3 = [number, number, number];
+export interface PlayOpts {
+  gain?: number; at?: Vec3; rate?: number; delay?: number; offset?: number; dur?: number; ref?: number;
+  lowpass?: number; // Hz
+  pan?: number; // −1 left … 1 right, for a flat sound
+  loop?: boolean;
+  fadeIn?: number; // s
+  thread?: boolean; // on the Threads bus (cut when the thread ends)
+}
 
 // footstep onsets (s) in each take, found by energy detection; each slice plays as one step
 const STEPS: Record<string, number[]> = {
@@ -24,6 +32,9 @@ class SoundEngine {
   private musicBus!: GainNode; // silent at St. Paul's
   private fx!: GainNode; // visitor's Sound volume: ambience, effects, interface
   private musicVol!: GainNode; // visitor's Music volume
+  private threadBus!: GainNode; // Threads: everything a thread plays, so leaving one can cut it all
+  private threadSources = new Set<AudioScheduledSourceNode>();
+  quiet = false; // Threads: no carriages or crows (a deliberate silence)
   private volume = { sound: 1, music: 1 };
   private buffers = new Map<string, Promise<AudioBuffer>>();
   private beds = new Map<string, GainNode>();
@@ -80,6 +91,8 @@ class SoundEngine {
     this.musicBus = ctx.createGain();
     this.musicBus.gain.value = 0;
     this.musicBus.connect(this.musicVol);
+    this.threadBus = ctx.createGain();
+    this.threadBus.connect(this.fx);
   }
 
   private load(name: string) {
@@ -146,9 +159,9 @@ class SoundEngine {
     ];
     for (const [key, file] of want) this.beds.set(key, await this.startLoop(file, this.bedBus, 0));
     // the windmill and the nearest gas lamp live in the scene
-    this.windmill = this.panner(25, 1.1);
+    this.windmill = this.panner(25, 1.1, this.bedBus);
     await this.startLoop('windmill', this.windmill, 1);
-    this.lamp = this.panner(1.5, 2.2);
+    this.lamp = this.panner(1.5, 2.2, this.bedBus);
     await this.startLoop('gaslamp', this.lamp, 0.5);
     this.mixBeds();
     this.startMusic();
@@ -185,7 +198,7 @@ class SoundEngine {
   }
 
   private mixMusic() {
-    if (this.ctx) this.fade(this.musicBus, this.on && !this.ducked ? 0.22 : 0, this.ducked ? 2 : 3);
+    if (this.ctx) this.fade(this.musicBus, this.on && !this.ducked && !this.musicOff ? 0.22 : 0, this.ducked || this.musicOff ? 2 : 3);
   }
 
   // the visitor's volume sliders, 0–1; squared so the slider feels even to the ear
@@ -207,13 +220,13 @@ class SoundEngine {
     set('wind-painterly', street && this.era === 'painterly' ? BEDS.wind : 0);
   }
 
-  private panner(ref: number, rolloff: number) {
+  private panner(ref: number, rolloff: number, dest: AudioNode = this.fx) {
     const p = this.ctx!.createPanner();
     p.panningModel = 'equalpower';
     p.distanceModel = 'inverse';
     p.refDistance = ref;
     p.rolloffFactor = rolloff;
-    p.connect(this.fx);
+    p.connect(dest);
     return p;
   }
 
@@ -225,7 +238,7 @@ class SoundEngine {
   }
 
   // one-shot; `at` places it in the scene, otherwise it plays flat (interface sounds)
-  async play(name: string, opts: { gain?: number; at?: Vec3; rate?: number; delay?: number; offset?: number; dur?: number; ref?: number } = {}) {
+  async play(name: string, opts: PlayOpts = {}) {
     if (!this.on || !this.ctx) return;
     const ctx = this.ctx;
     if (import.meta.env.DEV) this.log.push(name);
@@ -233,15 +246,35 @@ class SoundEngine {
     const s = ctx.createBufferSource();
     s.buffer = buf;
     s.playbackRate.value = opts.rate ?? 1;
+    s.loop = !!opts.loop;
     const g = ctx.createGain();
     g.gain.value = opts.gain ?? 1;
-    s.connect(g);
+    if (opts.fadeIn) {
+      g.gain.setValueAtTime(0, ctx.currentTime + (opts.delay ?? 0));
+      g.gain.linearRampToValueAtTime(opts.gain ?? 1, ctx.currentTime + (opts.delay ?? 0) + opts.fadeIn);
+    }
+    // through glass, or far off: a low-pass
+    let head: AudioNode = s;
+    if (opts.lowpass) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = opts.lowpass;
+      s.connect(f);
+      head = f;
+    }
+    head.connect(g);
+    const out = opts.thread ? this.threadBus : this.fx;
+    if (opts.thread && !opts.loop) this.threadSources.add(s); // loops (beds) belong to the thread stage
     let p: PannerNode | null = null;
     if (opts.at) {
-      p = this.panner(opts.ref ?? 6, 1);
+      p = this.panner(opts.ref ?? 6, 1, out);
       p.positionX.value = opts.at[0]; p.positionY.value = opts.at[1]; p.positionZ.value = opts.at[2];
       g.connect(p);
-    } else g.connect(this.fx);
+    } else if (opts.pan !== undefined) {
+      const sp = ctx.createStereoPanner();
+      sp.pan.value = opts.pan;
+      g.connect(sp).connect(out);
+    } else g.connect(out);
     const when = ctx.currentTime + (opts.delay ?? 0);
     if (opts.dur) {
       // a slice: short fades so it doesn't click
@@ -251,8 +284,72 @@ class SoundEngine {
       g.gain.linearRampToValueAtTime(0, when + opts.dur);
       s.start(when, opts.offset ?? 0, opts.dur);
     } else s.start(when, opts.offset ?? 0);
-    s.onended = () => { g.disconnect(); p?.disconnect(); };
-    return { source: s, panner: p };
+    s.onended = () => { g.disconnect(); p?.disconnect(); this.threadSources.delete(s); };
+    return { source: s, panner: p, gain: g };
+  }
+
+  // ---------------------------------------------------------------- Threads
+
+  // a thread's sound, faded in and out by handle (loops, beds)
+  async threadLoop(name: string, gain: number, opts: PlayOpts = {}) {
+    const r = await this.play(name, { ...opts, gain, loop: true, thread: true, fadeIn: opts.fadeIn ?? 2 });
+    return r ? { stop: (secs = 2) => this.fadeStop(r.source, r.gain, secs), gain: r.gain } : null;
+  }
+
+  fadeStop(src: AudioScheduledSourceNode, g: GainNode, secs = 1.5) {
+    if (!this.ctx) return;
+    this.fade(g, 0, secs);
+    try { src.stop(this.ctx.currentTime + secs + 0.05); } catch { /* already stopped */ }
+  }
+
+  // a quiet synthesized drone (the hum under the three accounts; the electric house)
+  drone(freq: number, gain: number, secs: number) {
+    if (!this.on || !this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const g = ctx.createGain();
+    const ramp = Math.min(2, secs / 3);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + ramp);
+    g.gain.setValueAtTime(gain, t + secs - ramp);
+    g.gain.linearRampToValueAtTime(0, t + secs);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = freq * 3;
+    lp.connect(g).connect(this.threadBus);
+    for (const [mul, type, lvl] of [[1, 'sine', 1], [2.003, 'triangle', 0.35], [0.5, 'sine', 0.5]] as const) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = freq * mul;
+      const og = ctx.createGain();
+      og.gain.value = lvl;
+      o.connect(og).connect(lp);
+      o.start(t);
+      o.stop(t + secs + 0.1);
+      this.threadSources.add(o);
+      o.onended = () => this.threadSources.delete(o);
+    }
+  }
+
+  // the street's ambience (beds, windmill, lamp) to a level; 0 is a true silence
+  duck(level: number, secs = 1.5) {
+    if (this.bedBus) this.fade(this.bedBus, level, secs);
+  }
+
+  musicOff = false;
+  setMusicOff(off: boolean) {
+    this.musicOff = off;
+    this.mixMusic();
+  }
+
+  // leaving a thread: cut what it started, give the street back
+  threadReset() {
+    this.quiet = false;
+    this.musicOff = false;
+    if (!this.ctx) return;
+    for (const s of this.threadSources) { try { s.stop(); } catch { /* done */ } }
+    this.threadSources.clear();
+    this.duck(this.ducked ? 0.12 : 1, 1.5);
+    this.mixMusic();
   }
 
   // ---------------------------------------------------------------- scene hooks
@@ -294,7 +391,7 @@ class SoundEngine {
   // a carriage in the scene is about to pass (see AudioDirector): the panner rides along with it,
   // and the take is started so its loudest moment (mid-take) lands on the closest approach
   async carriage(c: { x: number; z: number; dir: number; speed: number }) {
-    if (this.mode !== 'street') return;
+    if (this.mode !== 'street' || this.quiet) return;
     const r = await this.play(pick(['carriage-pass-1', 'carriage-pass-2']), { gain: 0.75, at: [c.x, 1.2, c.z], ref: 8 });
     if (!r?.panner || !this.ctx) return;
     const t = this.ctx.currentTime, v = c.dir * c.speed;
@@ -320,7 +417,7 @@ class SoundEngine {
     };
     // crows in the bare trees: more of them in 1888
     every(14, 40, () => {
-      if (this.mode !== 'street' || (this.era === 'painterly' && Math.random() < 0.6)) return;
+      if (this.mode !== 'street' || this.quiet || (this.era === 'painterly' && Math.random() < 0.6)) return;
       const a = Math.random() * Math.PI * 2, d = 20 + Math.random() * 40;
       this.play(pick(['crows-1', 'crows-2']), { gain: 0.45, at: [this.listenerX + Math.cos(a) * d, 14, this.listenerZ + Math.sin(a) * d], ref: 12 });
     });
