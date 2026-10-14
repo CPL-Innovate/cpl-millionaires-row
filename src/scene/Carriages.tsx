@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { euclidCentreZ } from '../data/site';
-import { makeDabMaterial } from '../gl/materials';
+import { makeAtlasCarriageFillMaterial, makeAtlasCarriageLineMaterial, makeDabMaterial } from '../gl/materials';
 import { dabGeo, rand } from './dabs';
 import { traffic, type Carriage } from './traffic';
 
@@ -65,6 +65,110 @@ function tintFor(role: Role, d: Dot, rr: () => number) {
 }
 
 type Part = { mesh: THREE.Mesh; m: THREE.Matrix4 };
+
+// ---------------------------------------------------------------------------------------------
+// The Atlas outline: the rig drawn in ink over paper, as an engraver would draw it on a bird's-eye
+// map: the coach a plain box, the driver's hat, four wheels with spokes (they turn), the pole, and
+// the pair seen from above. Only as much as reads at a few dozen pixels: reins, legs, a footboard and
+// a roof rail were tried and tangled. Measured off the baked model in the rig's frame (x ahead to the horses,
+// y up, z across).
+// ---------------------------------------------------------------------------------------------
+type V3 = [number, number, number];
+class Ink {
+  seg: number[] = []; // ax ay az bx by bz
+  fill: number[] = []; // triangles, with a normal and a shade each
+  line(a: V3, b: V3) { this.seg.push(...a, ...b); }
+  poly(pts: V3[], closed = true) {
+    for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) this.line(pts[i], pts[(i + 1) % pts.length]);
+  }
+  tri(a: V3, b: V3, c: V3, shade = 0) {
+    const n = new THREE.Vector3(...b).sub(new THREE.Vector3(...a)).cross(new THREE.Vector3(...c).sub(new THREE.Vector3(...a))).normalize();
+    for (const p of [a, b, c]) this.fill.push(...p, n.x, n.y, n.z, shade);
+  }
+  quad(a: V3, b: V3, c: V3, d: V3, shade = 0) { this.tri(a, b, c, shade); this.tri(a, c, d, shade); }
+  box(x0: number, x1: number, y0: number, y1: number, hz: number, shade = 0) {
+    const P = (x: number, y: number, z: number): V3 => [x, y, z];
+    const c = [P(x0, y0, -hz), P(x1, y0, -hz), P(x1, y0, hz), P(x0, y0, hz), P(x0, y1, -hz), P(x1, y1, -hz), P(x1, y1, hz), P(x0, y1, hz)];
+    this.quad(c[4], c[5], c[6], c[7], shade);
+    this.quad(c[0], c[1], c[5], c[4], shade); this.quad(c[3], c[2], c[6], c[7], shade);
+    this.quad(c[0], c[3], c[7], c[4], shade); this.quad(c[1], c[2], c[6], c[5], shade);
+    for (let i = 0; i < 4; i++) { this.line(c[i], c[(i + 1) % 4]); this.line(c[i + 4], c[((i + 1) % 4) + 4]); this.line(c[i], c[i + 4]); }
+  }
+  // a horizontal disc of paper with an ink rim
+  disc(cx: number, y: number, cz: number, r: number, n = 12, shade = 0) {
+    const pts: V3[] = Array.from({ length: n }, (_, i) => [cx + Math.cos((i / n) * 6.283) * r, y, cz + Math.sin((i / n) * 6.283) * r]);
+    pts.forEach((p, i) => this.tri([cx, y, cz], p, pts[(i + 1) % n], shade));
+    this.poly(pts);
+  }
+  geos() {
+    const lines = new THREE.BufferGeometry();
+    const n = this.seg.length / 6;
+    const A = new Float32Array(n * 12), B = new Float32Array(n * 12), E = new Float32Array(n * 8);
+    const idx: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const s = this.seg.slice(i * 6, i * 6 + 6);
+      for (let k = 0; k < 4; k++) {
+        A.set(s.slice(0, 3), (i * 4 + k) * 3); B.set(s.slice(3, 6), (i * 4 + k) * 3);
+        E.set([k >> 1, k & 1 ? 1 : -1], (i * 4 + k) * 2);
+      }
+      idx.push(i * 4, i * 4 + 1, i * 4 + 3, i * 4, i * 4 + 3, i * 4 + 2);
+    }
+    lines.setAttribute('position', new THREE.BufferAttribute(A.slice(), 3));
+    lines.setAttribute('aA', new THREE.BufferAttribute(A, 3));
+    lines.setAttribute('aB', new THREE.BufferAttribute(B, 3));
+    lines.setAttribute('aEnd', new THREE.BufferAttribute(E, 2));
+    lines.setIndex(idx);
+    const fill = new THREE.BufferGeometry();
+    const f = new Float32Array(this.fill), m = f.length / 7;
+    const pos = new Float32Array(m * 3), nrm = new Float32Array(m * 3), sh = new Float32Array(m);
+    for (let i = 0; i < m; i++) { pos.set(f.subarray(i * 7, i * 7 + 3), i * 3); nrm.set(f.subarray(i * 7 + 3, i * 7 + 6), i * 3); sh[i] = f[i * 7 + 6]; }
+    fill.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    fill.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+    fill.setAttribute('aShade', new THREE.BufferAttribute(sh, 1));
+    for (const g of [lines, fill]) g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0.5, 1, 0), 5);
+    return { lines, fill };
+  }
+}
+
+// the body: coach, driver, pole and the pair (wheels are drawn separately, so they can turn)
+function inkBody() {
+  const k = new Ink();
+  k.box(-2.85, 0.1, 0.62, 2.28, 0.72); // the coach
+  // the driver up front: shoulders, and a hat seen from above
+  k.disc(-0.2, 2.42, 0, 0.26, 10, 0.06);
+  k.disc(-0.2, 2.6, 0, 0.15, 10, 0.12);
+  // the pole between the horses
+  k.line([0.55, 0.95, 0], [2.6, 1.15, 0]);
+  // the pair: a horse seen from above, tail to muzzle, at the height of its back
+  const outline: [number, number, number][] = [ // x, y, half-width
+    [0.95, 1.28, 0.1], [1.05, 1.32, 0.21], [1.35, 1.34, 0.25], [1.75, 1.32, 0.26], [2.1, 1.36, 0.23],
+    [2.3, 1.44, 0.14], [2.5, 1.56, 0.1], [2.62, 1.6, 0.11], [2.85, 1.52, 0.08], [2.96, 1.46, 0.05],
+  ];
+  for (const zc of [-0.36, 0.36]) {
+    const L: V3[] = outline.map(([x, y, w]) => [x, y, zc - w]), R: V3[] = outline.map(([x, y, w]) => [x, y, zc + w]);
+    for (let i = 0; i < outline.length - 1; i++) k.quad(L[i], L[i + 1], R[i + 1], R[i], 0.16);
+    k.poly([...L, ...R.reverse()]);
+    k.line([0.95, 1.26, zc], [0.78, 0.85, zc]); // tail
+  }
+  return k.geos();
+}
+
+// one axle of wheels, centred on its hub: rims, a cross of spokes (enough to see them turn) and the
+// axle across
+function inkWheels(radius: number, hz: number) {
+  const k = new Ink();
+  for (const z of [-hz, hz]) {
+    const n = 18;
+    const rim: V3[] = Array.from({ length: n }, (_, i) => [Math.cos((i / n) * 6.283) * radius, Math.sin((i / n) * 6.283) * radius, z]);
+    k.poly(rim);
+    for (let i = 0; i < 2; i++) {
+      const a = (i / 2) * Math.PI;
+      k.line([Math.cos(a) * radius, Math.sin(a) * radius, z], [-Math.cos(a) * radius, -Math.sin(a) * radius, z]);
+    }
+  }
+  k.line([0, 0, -hz], [0, 0, hz]);
+  return k.geos();
+}
 
 // scatter n dots over a mesh, area-weighted; returns per-dot triangle corners + barycentrics
 function scatter(mesh: THREE.Mesh, perM2: number, cap: number, r: () => number, m: THREE.Matrix4) {
@@ -161,7 +265,8 @@ type Rig = {
   horses: THREE.BufferGeometry;
   keys: Float32Array[];
   phase: number; // where in the stride it starts, so the teams don't walk in step
-  wheels: { geo: THREE.BufferGeometry; hub: THREE.Vector3; radius: number }[];
+  wheels: { geo: THREE.BufferGeometry; hub: THREE.Vector3; radius: number; ink: ReturnType<typeof inkWheels> }[];
+  ink: ReturnType<typeof inkBody>;
 };
 
 function build(scene: THREE.Group, f: (typeof FLEET)[number], seed: number): Rig {
@@ -188,7 +293,7 @@ function build(scene: THREE.Group, f: (typeof FLEET)[number], seed: number): Rig
     for (let k = 0; k < arr.length; k += 6) box.expandByPoint(new THREE.Vector3(arr[k], arr[k + 1], arr[k + 2]));
     const hub = box.getCenter(new THREE.Vector3());
     for (let k = 0; k < arr.length; k += 6) { arr[k] -= hub.x; arr[k + 1] -= hub.y; arr[k + 2] -= hub.z; }
-    return { geo: dabGeo(arr), hub, radius: radii[i] };
+    return { geo: dabGeo(arr), hub, radius: radii[i], ink: inkWheels(radii[i], 0.8) };
   });
   const horseGeo = dabGeo(horses.arr);
   (horseGeo.getAttribute('position') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
@@ -200,15 +305,18 @@ function build(scene: THREE.Group, f: (typeof FLEET)[number], seed: number): Rig
     keys,
     phase: r(),
     wheels,
+    ink: inkBody(),
   };
 }
 
-function CarriageRig({ rig, mat }: { rig: Rig; mat: THREE.Material }) {
+function CarriageRig({ rig, mat, fill }: { rig: Rig; mat: THREE.Material; fill: THREE.Material }) {
+  const line = useMemo(() => makeAtlasCarriageLineMaterial(), []);
+  useEffect(() => () => line.dispose(), [line]);
   const group = useRef<THREE.Group>(null);
   const spin = useRef<(THREE.Group | null)[]>([]);
   const phase = useRef(rig.phase);
   const s = rig.state;
-  useFrame((_, dt0) => {
+  useFrame((state, dt0) => {
     const dt = Math.min(dt0, 0.1);
     s.x += s.dir * s.speed * dt;
     if (s.x > X1) s.x = X0;
@@ -225,14 +333,20 @@ function CarriageRig({ rig, mat }: { rig: Rig; mat: THREE.Material }) {
     const p = attr.array as Float32Array;
     for (let i = 0; i < p.length; i++) p[i] = a[i] + (b[i] - a[i]) * w;
     attr.needsUpdate = true;
+    // the Atlas outline's ribbons are sized in buffer pixels
+    state.gl.getDrawingBufferSize(line.uniforms.uRes.value);
+    line.uniforms.uDpr.value = state.gl.getPixelRatio();
   });
   return (
     <group ref={group} rotation-y={s.dir > 0 ? 0 : Math.PI}>
       <points geometry={rig.body} material={mat} renderOrder={2} />
       <points geometry={rig.horses} material={mat} renderOrder={2} />
+      <mesh geometry={rig.ink.fill} material={fill} renderOrder={2} />
+      <mesh geometry={rig.ink.lines} material={line} renderOrder={2} />
       {rig.wheels.map((w, i) => (
         <group key={i} position={w.hub} ref={(g) => { spin.current[i] = g; }}>
           <points geometry={w.geo} material={mat} renderOrder={2} />
+          <mesh geometry={w.ink.lines} material={line} renderOrder={2} />
         </group>
       ))}
     </group>
@@ -247,13 +361,14 @@ export function Carriages() {
     traffic.push(...rigs.map((r) => r.state));
     return () => {
       traffic.length = 0;
-      rigs.forEach((r) => [r.body, r.horses, ...r.wheels.map((w) => w.geo)].forEach((g) => g.dispose()));
+      rigs.forEach((r) => [r.body, r.horses, r.ink.fill, r.ink.lines, ...r.wheels.flatMap((w) => [w.geo, w.ink.fill, w.ink.lines])].forEach((g) => g.dispose()));
     };
   }, [rigs]);
-  const mat = useMemo(() => makeDabMaterial({ solid: true, role: 'kit' }), []);
+  const mat = useMemo(() => makeDabMaterial({ solid: true, role: 'carriage' }), []);
+  const fill = useMemo(() => makeAtlasCarriageFillMaterial(), []);
   return (
     <group>
-      {rigs.map((rig, i) => <CarriageRig key={i} rig={rig} mat={mat} />)}
+      {rigs.map((rig, i) => <CarriageRig key={i} rig={rig} mat={mat} fill={fill} />)}
     </group>
   );
 }

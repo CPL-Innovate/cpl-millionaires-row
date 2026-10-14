@@ -610,7 +610,7 @@ export function makeDabMaterial(
     flat?: boolean;
     solid?: boolean;
     carpet?: { box: number; near: boolean };
-    role?: 'crown' | 'bark' | 'ground' | 'kit' | 'shrub';
+    role?: 'crown' | 'bark' | 'ground' | 'kit' | 'shrub' | 'carriage';
   } = {},
 ) {
   return new THREE.ShaderMaterial({
@@ -622,7 +622,7 @@ export function makeDabMaterial(
       SOLID: opts.solid ? 1 : 0,
       CARPET: opts.carpet ? 1 : 0,
       CARPET_NEAR: opts.carpet?.near ? 1 : 0,
-      ROLE: { crown: 0, bark: 1, ground: 2, kit: 3, shrub: 4 }[opts.role ?? (opts.carpet ? 'ground' : 'kit')],
+      ROLE: { crown: 0, bark: 1, ground: 2, kit: 3, shrub: 4, carriage: 5 }[opts.role ?? (opts.carpet ? 'ground' : 'kit')],
     },
     uniforms: {
       ...U,
@@ -774,8 +774,8 @@ export function makeDabMaterial(
           size *= 1.0 - inkA;                               // the Atlas draws its own ground
           inkA = 0.0;
         #endif
-        #if ROLE == 0 || ROLE == 1 || ROLE == 4
-          size *= 1.0 - inkA;                               // the Atlas draws trees and shrubs as single shapes
+        #if ROLE == 0 || ROLE == 1 || ROLE == 4 || ROLE == 5
+          size *= 1.0 - inkA;                               // the Atlas draws trees, shrubs and carriages as single shapes
         #else
           size *= mix(1.0, 1.35, inkA);
         #endif
@@ -1059,6 +1059,89 @@ export function makeStreetLabelMaterial(map: THREE.Texture, seed: number) {
         if (a < 0.01) discard;
         vec3 ink = mix(mix(uPaper, uPencil, 0.8), uPencil, wet * 0.6);
         gl_FragColor = vec4(mix(uPaper, ink, glyph / max(a, 1e-3) * written * vis), a);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Atlas carriages: an engraver's outline instead of the dots: paper-white coach, horses and driver
+// with ink edges, drawn only where the Atlas shows and the paint hasn't arrived (the dots step aside
+// there, see ROLE 5). The fill writes depth so the far edges hide behind it; its upright faces take
+// a light grey so the box reads as a volume. Lines are screen-space ribbons, about 5 cm wide but
+// held between 0.8 and 2 CSS px so the rig stays legible from any height.
+// ---------------------------------------------------------------------------------------------
+export function makeAtlasCarriageFillMaterial() {
+  return new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 2,
+    uniforms: { ...U },
+    vertexShader: /* glsl */ `
+      attribute float aShade;
+      varying vec3 vWorld;
+      varying vec3 vN;
+      varying float vShade;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorld = wp.xyz;
+        vN = normalize(mat3(modelMatrix) * normal);
+        vShade = aShade;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      varying vec3 vWorld;
+      varying vec3 vN;
+      varying float vShade;
+      void main() {
+        if (atlasIn(vWorld.xz) * (1.0 - reveal(vWorld.xz)) < 0.5) discard;
+        float side = 1.0 - abs(vN.y);
+        gl_FragColor = vec4(mix(uPaper, uPencil, 0.03 + vShade + side * 0.13), 1.0);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
+export function makeAtlasCarriageLineMaterial() {
+  return new THREE.ShaderMaterial({
+    side: THREE.DoubleSide, // a ribbon's winding follows the segment's direction on screen
+    uniforms: { ...U, uRes: { value: new THREE.Vector2(1, 1) }, uDpr: { value: 1 } },
+    vertexShader: /* glsl */ `
+      uniform vec2 uRes;
+      uniform float uDpr;
+      uniform float uPxScale;
+      attribute vec3 aA;
+      attribute vec3 aB;
+      attribute vec2 aEnd; // x: 0 at A, 1 at B; y: −1 / +1 across
+      varying vec3 vWorld;
+      void main() {
+        vec3 a = aA, b = aB;
+        vec4 ca = projectionMatrix * viewMatrix * modelMatrix * vec4(a, 1.0);
+        vec4 cb = projectionMatrix * viewMatrix * modelMatrix * vec4(b, 1.0);
+        vec4 c = aEnd.x < 0.5 ? ca : cb;
+        vWorld = (modelMatrix * vec4(aEnd.x < 0.5 ? a : b, 1.0)).xyz;
+        vec2 sa = ca.xy / ca.w * uRes * 0.5, sb = cb.xy / cb.w * uRes * 0.5;
+        vec2 dir = sb - sa;
+        dir = length(dir) < 1e-4 ? vec2(1.0, 0.0) : normalize(dir);
+        vec2 nrm = vec2(-dir.y, dir.x);
+        float w = clamp(0.05 * uPxScale / max(c.w, 0.1), 0.8 * uDpr, 2.0 * uDpr);
+        // half a width past each end, so corners close
+        vec2 off = (nrm * aEnd.y + dir * (aEnd.x * 2.0 - 1.0)) * w * 0.5;
+        c.xy += off / (uRes * 0.5) * c.w;
+        gl_Position = c;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      varying vec3 vWorld;
+      void main() {
+        if (atlasIn(vWorld.xz) * (1.0 - reveal(vWorld.xz)) < 0.5) discard;
+        gl_FragColor = vec4(mix(uPaper, uPencil, 0.7), 1.0);
         #include <colorspace_fragment>
       }
     `,
