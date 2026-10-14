@@ -112,22 +112,34 @@ backend, and everything runs in the browser.
 src/
   App.tsx               UI shell: panels, stations, cards, deep links
   palettes.ts           Graphite / Sepia / Cyanotype: pencil, paper, foliage + earth colour ramps
-  data/site.ts          Buildings (positions, provenance ledgers, sources), stations, story beats
-  gl/uniforms.ts        Shared shader uniforms (palette, evidence, reveal, live generator params)
-  gl/materials.ts       Shaders: pencil hatching, plate/ground, photo ghost, pointillist dots
+  data/site.ts          Buildings (positions, meshes + per-face provenance, ledgers, sources),
+                        stations, story beats
+  gl/uniforms.ts        Shared shader uniforms (palette, evidence, reveal, looks, live generator params)
+  gl/materials.ts       Shaders: pencil hatching, watercolour + texture looks, plate/ground, photo
+                        ghost, pointillist dots
   gl/geometry.ts        Massing volumes, tree generator, windmill
   scene/World.tsx       Scene assembly: ground, buildings, trees, street kit, ground dots
   scene/CameraRig.tsx   Map ↔ street transitions, walking, station moves
   scene/Overlays.tsx    Photo ghosts, story pins, map labels
-  settings/             Generator schema + store (autosave, presets, project defaults)
-  ui/GeneratorPanel.tsx The Generator drawer
+  scene/walk.ts         Walking state shared with the audio
+  audio/engine.ts       Web Audio: ambience beds, positional sounds, footsteps, beats, music, mix
+  audio/AudioDirector.tsx  Listener on the camera, windmill/lamp placement, footsteps by surface
+  settings/             Generator schema + store (eras, quality, per-house watercolour, autosave,
+                        presets, project defaults)
+  ui/GeneratorPanel.tsx The Generator drawer (incl. Watercolour · per house)
+  ui/Perf.tsx           Frame-rate probe (?fps)
 scripts/
   compose_plate.py      Georeferences Plates 3 + 5 into public/plates/euclid-case-1881.jpg
   strip-everett.mjs     Slims the Everett spike mesh (drops unused PBR maps)
   slim-model.mjs        Slims a raw Tripo export: base colour only, ~85k triangles, 1K map, meshopt
-  house-maps.mjs      Extracts 2k colour + normal maps for the Watercolour and Texture looks
+  house-maps.mjs        Extracts a house's 2k colour + normal maps for the Watercolour and Texture looks
+  gen-sounds.mjs        Generates sounds and music with ElevenLabs from sounds.json
+  normalize-audio.py    Levels every sound to −20 LUFS
+docs/
+  sound-brief.md        Every sound and music prompt with its settings
 public/
-  plates/  img/  models/
+  plates/  img/  models/  audio/
+  settings.json         Project default look (Generator → Save as project default)
 ```
 
 ### Techniques worth knowing
@@ -194,24 +206,33 @@ public/
 
 ## Next steps (pinned)
 
-In priority order, from the last review:
+Where things stand (2026-10-13): four modelled houses (Everett, Stager-Beckwith, Rockefeller,
+Wade Sr.) in Pencil / Watercolour / Texture with per-house watercolour tuning (Everett tuned and
+saved in `public/settings.json`); Painterly default with an 1888 toggle; the plate registered to the
+3D street; gathering dots and developing photos; frame-rate readout and a Light setting; generated
+sound and music with volume sliders. In priority order:
 
-1. **Bring the buildings into the painting while keeping them as drawings.**
-   - Contact dots and foundation planting where each wall meets the ground. *(Everett done; the
-     massing blocks still need them.)*
-   - Everett now has Watercolour and Texture looks to compare against Pencil. Proposed next: a
-     "Provenance" look that picks the treatment per face (texture where photographed, watercolour
-     where inferred, pencil where invented).
-   - Pencil window grids, string courses and cornices on the massing (marked inferred).
-   - An optional inferred-colour wash on the walls (sandstone, brick).
-2. ~~An "1888" preset alongside a "Painterly" one.~~ Done: Painterly is the default, 1888 the
-   toggle. Still worth calibrating 1888's colours against the photographs with L&GH.
-3. ~~Dots gathering on arrival, and station photos dissolving in at their edges.~~ Done.
-4. ~~A frame-rate counter and a "light" preset.~~ Done (`?fps`, Performance → Light). Next:
-   measure on a phone.
-5. ~~Sound.~~ First pass in: 30 generated sounds, needing a listening pass to re-roll weak takes.
-6. Later: the winter sleigh-race moment (a Generator preset, plus the winter sounds in the brief),
-   and figures and carriages drawn in dots.
+1. **Tune and review the other three houses' watercolour** (Generator → Watercolour · per house),
+   then Save as project default. Wade Sr.'s roof can't be found by colour (its walls and roof are
+   both neutral), so its roof settings do little.
+2. **Check the new spikes before anyone scores them:** Wade Sr. against the IoA ch04-48
+   lithograph (the façade break; the rear wing is ~15 m short); a crop-first re-run for
+   Rockefeller; confirm the WRHS rights for the Stager-Beckwith front photo.
+3. **A "Provenance" look** that picks the treatment per face: texture where photographed,
+   watercolour where inferred, pencil where invented.
+4. **The massing blocks:** contact dots, pencil window grids, string courses and cornices (marked
+   inferred), an optional inferred-colour wash.
+5. **The fSpy control pass** for photos 62/63/59/65: replaces the eyeballed station cameras and
+   the facing-direction provenance heuristic.
+6. **Measure on a phone** (Full now draws ~1.5M points plus four ~85k-triangle meshes).
+7. **A listening pass** on the 32 sounds and two music pieces; regenerate the sound effects on the
+   paid ElevenLabs account before any public build (they were made on a free account).
+8. Later: the winter sleigh race (a Generator preset plus the winter sounds already generated),
+   figures and carriages drawn in dots, and calibrating 1888's colours with L&GH.
+
+Done since the first spike: Painterly / 1888, gathering dots and developing photos, frame rate and
+Light, sound and music, the plate seam and registration, three more houses, the looks for every
+modelled house.
 
 ## Dev-only helpers
 
