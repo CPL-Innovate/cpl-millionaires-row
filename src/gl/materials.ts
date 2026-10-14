@@ -187,6 +187,13 @@ export function makeSurfaceMaterial(opts: {
         // the texture's own colour, nudged toward the palette's earths and kept clean (no mud)
         vec3 pig = mix(alb, rampE(1.0 + al * 5.0) * (0.6 + al), uW_paletteTint);
         pig = max(mix(vec3(dot(pig, LUMA)), pig, uW_saturation), 0.0);
+        // roofs: cool slate-coloured texture (not the darker glass) above a height. The jagged Tripo
+        // meshes make the surface angle useless here. Pulled toward slate on request, keeping the
+        // texture's own light and dark.
+        float hgt = (vPosO.y - uBoxMin.y) / max(uBoxMax.y - uBoxMin.y, 1e-4);
+        float roof = smoothstep(-0.07, 0.0, alb.b - alb.r) * smoothstep(0.1, 0.2, al) * smoothstep(uW_roofFrom - 0.04, uW_roofFrom + 0.04, hgt);
+        vec3 slate = mix(vec3(0.16, 0.19, 0.28), uFoliage[7] * 0.8, uW_roofViolet) * (0.55 + al);
+        pig = mix(pig, slate, uW_roofSlate * roof);
 
         vec3 nn = perturb(n, uW_relief);
         vec2 wq = vec2(vWorld.x + vWorld.z, vWorld.y);
@@ -201,12 +208,13 @@ export function makeSurfaceMaterial(opts: {
         D *= 1.0 - uW_granulation * 0.6 + uW_granulation * noise2(wq * 0.31 + 0.17) + 0.1 * paperGrain(gl_FragCoord.xy);
         // reserved whites: bare paper on the brightest sunlit patches
         float reserve = lit * step(0.62, noise2(wq * 0.09 + 0.5) + (s - 0.6) * 0.8);
-        D *= 1.0 - reserve * uW_reserve;
+        D += uW_roofPaint * roof;
+        D *= 1.0 - reserve * uW_reserve * mix(1.0, uW_roofWhites, roof);
         // lost edges: the foot of the wall bleeds into the lawn (the contact dots cover the seam)
         if (uW_bleed > 0.001) D *= smoothstep(0.0, 1.0, (vWorld.y - 0.05) / max(uW_bleed + wob * uW_bleed * 1.1, 0.01));
 
         vec3 shade = mix(pig, uFoliage[7] * 0.8, uW_violet * (1.0 - mid));               // violet in the shadows
-        shade = mix(shade, shade * vec3(1.0 + uW_warmth, 1.0, 1.0 - uW_warmth * 1.67), lit); // warm where the sun lands
+        shade = mix(shade, shade * vec3(1.0 + uW_warmth, 1.0, 1.0 - uW_warmth * 1.67), lit * (1.0 - uW_roofSlate * roof)); // warm where the sun lands (not on slate)
         vec3 c = mix(uPaper, shade, clamp(D, 0.0, 1.0));
         c = uW_lightness >= 0.0 ? mix(c, uPaper, uW_lightness) : c * (1.0 + uW_lightness);
         // keep the pencil in the shadows only, and only where there is paint

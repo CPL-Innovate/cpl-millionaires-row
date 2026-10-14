@@ -64,7 +64,9 @@ npm run build    # type-check + production build into dist/
   - **Watercolour · per house** (top of the Generator) tunes each house's wash: pigment load,
     shadow depth, lightness, pull toward the palette, saturation, violet shadows, warm light, edge
     wobble, wet edges, granulation, reserved whites, foot bleed, pencil, texture softness and
-    relief. Each house keeps its own values (saved with presets, export and the project default);
+    relief, plus five roof settings (where the roof starts, pigment, reserved whites, slate colour,
+    blue ↔ violet). Roofs are found by their cool slate colour above a height, because the jagged
+    Tripo meshes make the surface angle useless. Each house keeps its own values (saved with presets, export and the project default);
     **Copy to all houses** and **Reset house** sit underneath. Wade Sr. starts grey because its
     wall material is unknown.
   - Switching looks blotches the new one in with the same noise as the street reveal. In every

@@ -174,6 +174,14 @@ export const WASH_PARAMS: ParamDef[] = [
   { key: 'pencil', label: 'Pencil in shadows', min: 0, max: 1, step: 0.01, def: 0.28, live: true },
   { key: 'softness', label: 'Texture softness', min: 0, max: 2, step: 0.01, def: 0.75, live: true, hint: 'Blurs the texture; high values smear across the model’s UV seams' },
   { key: 'relief', label: 'Surface relief', min: 0, max: 1.5, step: 0.01, def: 0.45, live: true, hint: 'How much the normal map shapes the washes' },
+  // roofs face the sun, so they get the least paint and the most reserved whites; these lift them.
+  // Roofs are found by colour (cool slate, not dark glass) above a height: Tripo meshes are too
+  // jagged for the surface angle to tell a steep roof from a wall.
+  { key: 'roofFrom', label: 'Roof · starts at height', min: 0, max: 1, step: 0.01, def: 0.45, live: true, hint: 'Share of the house’s height above which cool slate-coloured texture counts as roof' },
+  { key: 'roofPaint', label: 'Roof · pigment', min: 0, max: 1, step: 0.01, def: 0, live: true, hint: 'Extra paint on upward-facing surfaces' },
+  { key: 'roofWhites', label: 'Roof · reserved whites', min: 0, max: 1, step: 0.01, def: 1, live: true, hint: 'Bare paper on roofs, as a share of the walls’ setting' },
+  { key: 'roofSlate', label: 'Roof · slate colour', min: 0, max: 1, step: 0.01, def: 0, live: true, hint: 'Pull the roof toward slate (also keeps the warm light off it)' },
+  { key: 'roofViolet', label: 'Roof · blue ↔ violet', min: 0, max: 1, step: 0.01, def: 0.4, live: true, hint: '0 blue-grey slate, 1 the palette’s lavender' },
 ];
 export const WASH_DEFAULTS: Record<string, number> = Object.fromEntries(WASH_PARAMS.map((p) => [p.key, p.def]));
 // a house whose wall material is unknown starts grey, not palette earth
