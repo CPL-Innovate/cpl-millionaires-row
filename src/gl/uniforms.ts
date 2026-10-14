@@ -83,6 +83,7 @@ export const U = {
   // Threads: night/dusk grade (gl/night.ts), 0 = day
   uNight: { value: 0 },
   uNightTint: { value: new THREE.Color(0.17, 0.2, 0.34) },
+  uSnow: { value: 0 }, // Threads: a winter grade (gl/night.ts)
 };
 
 // live generator parameters: one shared uniform per key, named uG_<key>

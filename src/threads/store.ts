@@ -61,6 +61,6 @@ export const threadStore = {
 };
 
 // a thread has the camera (read by the scene without pulling in the threads themselves)
-export const threadState = { active: false };
+export const threadState = { active: false, noCarriages: false }; // noCarriages: a winter has sleighs, not carriages
 
 export const useThread = () => useSyncExternalStore(threadStore.subscribe, threadStore.get);

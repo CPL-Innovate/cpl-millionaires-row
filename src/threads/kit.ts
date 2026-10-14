@@ -5,6 +5,7 @@ import { sound, type PlayOpts } from '../audio/engine';
 import { BUILDINGS, plateToWorld } from '../data/site';
 import type { Caption, Panel, StopInfo, ThreadView } from './store';
 import { AVENUE_DEFAULTS, avenueMap } from './avenue';
+import { threadState } from './store';
 
 // The toolkit every thread is choreographed with. A thread is one paused gsap timeline, built stop
 // by stop; every piece of state it touches (camera, grade, houses, ambience levels, beds) is tweened
@@ -28,6 +29,7 @@ export const rig = {
   dark: 0, // the frame fades toward black (Listen)
   shake: 0, // handheld: metres of drift the stage adds on top of the shot
   rails: 0, // streetcar rails drawn down Euclid, east → west (0–1; The Line, 1915)
+  snowfall: 0, // falling snow, 0–1 (threads/Figures)
   ghost: { x: 0, z: 0, o: 0, w: 10, h: 9, d: 9 }, // a pencil massing block, construction lines only (Follow the Money)
   beds: {} as Record<string, number>, // looping sounds by file → gain
   bedOpts: {} as Record<string, PlayOpts>,
@@ -75,6 +77,9 @@ export class Kit {
       .set(rig, { fov: start.fov ?? 50, duck: 1, quiet: 0, music: 0, dark: 0, shake: 0, rails: 0, street: start.scene === 'street' ? 1 : 0, scene: start.scene }, 0)
       .set(U.uNight, { value: 0 }, 0)
       .set(U.uNightTint.value, { r: 0.17, g: 0.2, b: 0.34 }, 0)
+      .set(U.uSnow, { value: 0 }, 0)
+      .set(rig, { snowfall: 0 }, 0)
+      .set(threadState, { noCarriages: false }, 0)
       .set(rig.ghost, { o: 0 }, 0)
       .set(U.uEvidence, { value: 0 }, 0)
       .set(avenueMap, { ...AVENUE_DEFAULTS }, 0)
@@ -175,6 +180,14 @@ export class Stop {
   // the grade's colour: night blue by default; a warm grey reads as smoke
   tint(rgb: [number, number, number], at = 0) { this.k.tl.set(U.uNightTint.value, { r: rgb[0], g: rgb[1], b: rgb[2] }, this.mark(at)); return this; }
   ghost(vars: Partial<typeof rig.ghost>, dur: number, at = 0, ease = 'none') { this.k.tl.to(rig.ghost, { ...vars, duration: Math.max(0.01, dur), ease }, this.mark(at, dur)); return this; }
+  // the street's painted carriages on or off
+  carriages(on: boolean, at = 0) { this.k.tl.set(threadState, { noCarriages: !on }, this.mark(at)); return this; }
+  // winter: the snow grade and the snowfall
+  snow(grade: number, fall: number, dur: number, at = 0) {
+    const t = this.mark(at, dur);
+    this.k.tl.to(U.uSnow, { value: grade, duration: Math.max(0.01, dur), ease: 'power1.inOut' }, t).to(rig, { snowfall: fall, duration: Math.max(0.01, dur) }, t);
+    return this;
+  }
   night(v: number, dur: number, at = 0) { this.k.tl.to(U.uNight, { value: v, duration: dur, ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   evidence(v: number, dur: number, at = 0) { this.k.tl.to(U.uEvidence, { value: v, duration: dur, ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   gone(id: string, v: number, dur: number, at = 0, ease = 'power1.inOut') {

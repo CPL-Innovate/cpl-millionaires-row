@@ -6,6 +6,8 @@ import { sound } from '../audio/engine';
 import { rig } from './kit';
 import { player, threadState } from './player';
 
+const SNOW_SKY = new THREE.Color(0.8, 0.83, 0.88); // a white winter sky, linear
+
 type Bed = { stop: (s?: number) => void; gain: GainNode } | 'pending';
 
 // Inside the Canvas: while a thread plays, its rig drives the camera, the grade and the ambience.
@@ -50,7 +52,10 @@ export function ThreadStage() {
     if (Math.abs(cam.fov - rig.fov) > 1e-3) { cam.fov = rig.fov; cam.updateProjectionMatrix(); }
 
     // the night grade reaches the clear colour and the paper vignette too
-    if (scene.background instanceof THREE.Color) scene.background.copy(U.uPaper.value).lerp(night.copy(U.uPaper.value).multiply(U.uNightTint.value).multiplyScalar(0.75), U.uNight.value);
+    if (scene.background instanceof THREE.Color) {
+      scene.background.copy(U.uPaper.value).lerp(SNOW_SKY, U.uSnow.value * 0.6);
+      scene.background.lerp(night.copy(scene.background).multiply(U.uNightTint.value).multiplyScalar(0.75), U.uNight.value);
+    }
     document.documentElement.style.setProperty('--night', U.uNight.value.toFixed(3));
 
     // ambience: only touch the audio graph when a level actually moves

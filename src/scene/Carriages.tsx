@@ -325,7 +325,7 @@ function CarriageRig({ rig, mat, fill }: { rig: Rig; mat: THREE.Material; fill: 
     s.z = euclidCentreZ(s.x) + s.dir * LANE;
     group.current?.position.set(s.x, 0, s.z);
     // a thread's camera often stands in the road: a carriage about to drive through it steps aside
-    if (group.current) group.current.visible = !(threadState.active && Math.hypot(state.camera.position.x - s.x, state.camera.position.z - s.z) < 9);
+    if (group.current) group.current.visible = !(threadState.active && (threadState.noCarriages || Math.hypot(state.camera.position.x - s.x, state.camera.position.z - s.z) < 9));
     rig.wheels.forEach((w, i) => { const g = spin.current[i]; if (g) g.rotation.z -= (s.speed * dt) / w.radius; });
     // walk: blend the two nearest keys of the stride
     const period = 1.28 / GAIT;

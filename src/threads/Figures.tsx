@@ -150,6 +150,40 @@ function Ghost() {
   return <lineSegments ref={ref} geometry={geo} material={mat} renderOrder={3} />;
 }
 
+// falling snow: a box of flakes around the camera, drifting down and wrapping
+function Snow() {
+  const N = 6000, BOX = 50, TOP = 24;
+  const { geo, seeds } = useMemo(() => {
+    const p = new Float32Array(N * 3), seeds = new Float32Array(N);
+    for (let i = 0; i < N; i++) { p[i * 3] = Math.random() * BOX; p[i * 3 + 1] = Math.random() * TOP; p[i * 3 + 2] = Math.random() * BOX; seeds[i] = Math.random(); }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3).setUsage(THREE.DynamicDrawUsage));
+    return { geo: g, seeds };
+  }, []);
+  const mat = useMemo(() => new THREE.PointsMaterial({ color: 0xffffff, size: 0.09, transparent: true, depthWrite: false, opacity: 0 }), []);
+  useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
+  const ref = useRef<THREE.Points>(null);
+  useFrame(({ camera }, dt) => {
+    const pts = ref.current;
+    if (!pts) return;
+    pts.visible = rig.snowfall > 0.01;
+    if (!pts.visible) return;
+    mat.opacity = Math.min(1, rig.snowfall) * 0.9;
+    const a = geo.getAttribute('position') as THREE.BufferAttribute, p = a.array as Float32Array;
+    const cx = camera.position.x - BOX / 2, cz = camera.position.z - BOX / 2, t = performance.now() / 1000;
+    for (let i = 0; i < N; i++) {
+      const s = seeds[i];
+      p[i * 3 + 1] -= dt * (0.7 + s * 0.6);
+      if (p[i * 3 + 1] < 0) p[i * 3 + 1] += TOP;
+      p[i * 3] += Math.sin(t * 0.7 + s * 30) * dt * 0.25;
+    }
+    a.needsUpdate = true;
+    // the box rides with the camera, so the flakes always surround it
+    pts.position.set(Math.floor(cx), 0, Math.floor(cz));
+  });
+  return <points ref={ref} geometry={geo} material={mat} renderOrder={6} />;
+}
+
 // the set of figures changes only when a thread starts (each thread declares its own)
 export function Figures() {
   const ids = useRef<{ gen: number; ids: string[] }>({ gen: -1, ids: [] });
@@ -158,5 +192,5 @@ export function Figures() {
     const now = Object.keys(rig.figures);
     if (ids.current.gen !== rig.gen || now.length !== ids.current.ids.length) { ids.current = { gen: rig.gen, ids: now }; force(); }
   });
-  return <group>{ids.current.ids.map((id) => <Figure key={`${ids.current.gen}-${id}`} id={id} />)}<Rails /><Ghost /></group>;
+  return <group>{ids.current.ids.map((id) => <Figure key={`${ids.current.gen}-${id}`} id={id} />)}<Rails /><Ghost /><Snow /></group>;
 }

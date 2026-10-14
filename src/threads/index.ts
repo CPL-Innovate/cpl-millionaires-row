@@ -9,6 +9,7 @@ import { listen } from './listen';
 import { afterlives } from './afterlives';
 import { followTheMoney } from './followTheMoney';
 import { whosMissing } from './whosMissing';
+import { startingLine } from './startingLine';
 
 // The menu (content/2026-10-14-threads-scripts, "The menu"): label, hover line, runtime. Each
 // thread is its own hand-choreographed file.
@@ -29,6 +30,7 @@ export const THREADS: ThreadDef[] = [
   { id: 'follow-the-money', label: 'Follow the Money', hover: 'Oil, iron and a bank collapse built this corner. Taxes emptied it.', runtime: '1:45', build: followTheMoney },
   { id: 'afterlives', label: 'Afterlives', hover: 'Golf on the lawn, rock ’n’ roll at the Arena, a cure for drink.', runtime: '1:45', build: afterlives },
   { id: 'whos-missing', label: 'Who’s Missing', hover: 'The people the cameras never pointed at.', runtime: '1:30', build: whosMissing },
+  { id: 'starting-line', label: 'The Starting Line', hover: 'Fifty sleighs, red flags, thirty miles an hour.', runtime: '1:15', build: startingLine },
   { id: 'listen', label: 'Listen', hover: 'Close your eyes. Euclid Avenue, 1888, by ear.', runtime: '1:45', build: listen },
   { id: 'four-corners', label: 'Four Corners', hover: 'One patriarch, three corners, and a church that kept quiet for him.', runtime: '1:30', build: fourCorners },
 ];
