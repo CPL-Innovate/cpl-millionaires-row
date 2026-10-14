@@ -127,6 +127,29 @@ function Rails() {
   return <mesh ref={ref} geometry={geo} material={mat} renderOrder={3} />;
 }
 
+// a house that isn't there: a massing block in construction lines (dashed pencil), placed by rig.ghost
+function Ghost() {
+  const geo = useMemo(() => {
+    const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
+    const l = new THREE.LineSegments(g);
+    l.computeLineDistances();
+    return l.geometry;
+  }, []);
+  const mat = useMemo(() => new THREE.LineDashedMaterial({ color: new THREE.Color(0.13, 0.12, 0.11), dashSize: 0.5, gapSize: 0.25, transparent: true }), []);
+  useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
+  const ref = useRef<THREE.LineSegments>(null);
+  useFrame(() => {
+    const l = ref.current, gh = rig.ghost;
+    if (!l) return;
+    l.visible = gh.o > 0.01;
+    mat.opacity = gh.o;
+    l.position.set(gh.x, gh.h / 2, gh.z);
+    l.scale.set(gh.w, gh.h, gh.d);
+    mat.dashSize = 0.5 / Math.max(gh.w, 1); mat.gapSize = 0.25 / Math.max(gh.w, 1); // dashes in world metres, roughly
+  });
+  return <lineSegments ref={ref} geometry={geo} material={mat} renderOrder={3} />;
+}
+
 // the set of figures changes only when a thread starts (each thread declares its own)
 export function Figures() {
   const ids = useRef<{ gen: number; ids: string[] }>({ gen: -1, ids: [] });
@@ -135,5 +158,5 @@ export function Figures() {
     const now = Object.keys(rig.figures);
     if (ids.current.gen !== rig.gen || now.length !== ids.current.ids.length) { ids.current = { gen: rig.gen, ids: now }; force(); }
   });
-  return <group>{ids.current.ids.map((id) => <Figure key={`${ids.current.gen}-${id}`} id={id} />)}<Rails /></group>;
+  return <group>{ids.current.ids.map((id) => <Figure key={`${ids.current.gen}-${id}`} id={id} />)}<Rails /><Ghost /></group>;
 }

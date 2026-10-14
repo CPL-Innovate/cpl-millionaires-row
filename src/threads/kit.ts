@@ -28,6 +28,7 @@ export const rig = {
   dark: 0, // the frame fades toward black (Listen)
   shake: 0, // handheld: metres of drift the stage adds on top of the shot
   rails: 0, // streetcar rails drawn down Euclid, east → west (0–1; The Line, 1915)
+  ghost: { x: 0, z: 0, o: 0, w: 10, h: 9, d: 9 }, // a pencil massing block, construction lines only (Follow the Money)
   beds: {} as Record<string, number>, // looping sounds by file → gain
   bedOpts: {} as Record<string, PlayOpts>,
   scene: 'street' as Scene,
@@ -73,6 +74,8 @@ export class Kit {
       .set(rig.tgt, { x: start.tgt[0], y: start.tgt[1], z: start.tgt[2] }, 0)
       .set(rig, { fov: start.fov ?? 50, duck: 1, quiet: 0, music: 0, dark: 0, shake: 0, rails: 0, street: start.scene === 'street' ? 1 : 0, scene: start.scene }, 0)
       .set(U.uNight, { value: 0 }, 0)
+      .set(U.uNightTint.value, { r: 0.17, g: 0.2, b: 0.34 }, 0)
+      .set(rig.ghost, { o: 0 }, 0)
       .set(U.uEvidence, { value: 0 }, 0)
       .set(avenueMap, { ...AVENUE_DEFAULTS }, 0)
       .set(U.uLookFrom, { value: this.lookStart.look }, 0).set(U.uLookTo, { value: this.lookStart.look }, 0)
@@ -169,6 +172,9 @@ export class Stop {
       .to(U.uLookLines, { value: lines, duration: dur, ease: 'power1.inOut' }, t);
     return this;
   }
+  // the grade's colour: night blue by default; a warm grey reads as smoke
+  tint(rgb: [number, number, number], at = 0) { this.k.tl.set(U.uNightTint.value, { r: rgb[0], g: rgb[1], b: rgb[2] }, this.mark(at)); return this; }
+  ghost(vars: Partial<typeof rig.ghost>, dur: number, at = 0, ease = 'none') { this.k.tl.to(rig.ghost, { ...vars, duration: Math.max(0.01, dur), ease }, this.mark(at, dur)); return this; }
   night(v: number, dur: number, at = 0) { this.k.tl.to(U.uNight, { value: v, duration: dur, ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   evidence(v: number, dur: number, at = 0) { this.k.tl.to(U.uEvidence, { value: v, duration: dur, ease: 'power1.inOut' }, this.mark(at, dur)); return this; }
   gone(id: string, v: number, dur: number, at = 0, ease = 'power1.inOut') {

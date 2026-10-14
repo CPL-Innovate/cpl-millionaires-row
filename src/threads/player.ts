@@ -85,6 +85,8 @@ export const player = {
     threadState.active = false;
     resetHouseFx();
     U.uNight.value = 0;
+    U.uNightTint.value.setRGB(0.17, 0.2, 0.34);
+    rig.ghost.o = 0;
     U.uEvidence.value = 0;
     U.uLookFrom.value = savedLook.from; U.uLookTo.value = savedLook.to; U.uLookT.value = savedLook.t; U.uLookLines.value = savedLook.lines;
     rig.dark = 0;
