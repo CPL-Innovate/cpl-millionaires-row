@@ -72,7 +72,7 @@ npm run build    # type-check + production build into dist/
   (`ERA_1888` in `settings/schema.ts`), and the Generator edits whichever one is showing.
 - **Modelled house looks** (all seven modelled houses; any massing blocks stay pencil):
   - **Pencil:** the drawing described above.
-  - **Watercolour:** the model's texture, painted. It keeps the texture's detail and values, pulls
+  - **Watercolour (the default; `?look=pencil` or `?look=texture` opens another):** the model's texture, painted. It keeps the texture's detail and values, pulls
     the colour toward the palette's earths, lays washes with wet edges, leaves paper white where
     the sun lands, lets the foot of the wall bleed into the lawn, and keeps pencil hatching in the shadows.
   - **Texture:** the Tripo texture as generated, lit by the scene's sun, with a normal map.

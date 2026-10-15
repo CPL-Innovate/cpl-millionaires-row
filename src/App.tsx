@@ -41,7 +41,9 @@ type LookId = (typeof LOOKS)[number]['id'];
 const params = new URLSearchParams(location.search);
 const initialPalette = (params.get('palette') as PaletteId) in PALETTES ? (params.get('palette') as PaletteId) : 'graphite';
 const initialEvidence = Math.min(1, Math.max(0, Number(params.get('evidence') ?? 0) || 0));
-const initialLook = Math.max(0, LOOKS.findIndex((l) => l.id === params.get('look')));
+// the houses open in Watercolour unless ?look= asks for another
+const lookParam = LOOKS.findIndex((l) => l.id === params.get('look'));
+const initialLook = lookParam >= 0 ? lookParam : LOOKS.findIndex((l) => l.id === 'wash');
 U.uLookFrom.value = U.uLookTo.value = initialLook;
 U.uLookLines.value = LOOKS[initialLook].lines;
 const initialMapStyle: MapStyle = params.get('map') === 'plate' ? 'plate' : 'atlas'; // ?map=plate opens on the flat plate
