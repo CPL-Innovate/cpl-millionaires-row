@@ -39,6 +39,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   background: var(--bg); border: 1px solid var(--rule); padding: 14px 16px 6px;
   backdrop-filter: blur(4px); box-shadow: 0 1px 0 var(--rule);
 }
+.panel { transition: transform 0.35s ease, opacity 0.35s ease; }
+.panel.hidden-panel { transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; }
 .panel section { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--rule); }
 .panel section:last-child { border-bottom: 0; margin-bottom: 0; }
 .panel h3 { font-family: var(--display); font-weight: 400; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 8px; color: var(--muted); }

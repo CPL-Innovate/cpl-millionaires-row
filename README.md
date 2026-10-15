@@ -55,6 +55,7 @@ npm run build    # type-check + production build into dist/
   (`LOTS` in `data/site.ts`, plate px); the lot strip runs west to east along the bottom.
 - **Map mode (1881 plate):** the 1881 Hopkins Plates 3 and 5, georeferenced into one north-up map. Pick a house
   or a station to descend.
+- **Tab** hides and shows the settings panel on the right (remembered per browser; not while typing in a field).
 - **Street mode:** drag to look, WASD or the arrow keys to walk, shift to hurry. Numbered pins are
   sourced story beats.
 - **Stations:** at each matched view, the CPL photograph inks in over the scene. The

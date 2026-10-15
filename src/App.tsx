@@ -55,6 +55,8 @@ settings.loadProject();
 const SOUND = 'mr-sound-v1';
 const readSound = () => { try { return localStorage.getItem(SOUND) === 'on'; } catch { return false; } };
 const VOLUME = 'mr-volume-v1';
+const PANEL = 'mr-panel-v1'; // the settings panel hidden with Tab, remembered per browser
+const readPanelHidden = () => { try { return localStorage.getItem(PANEL) === 'hidden'; } catch { return false; } };
 const readVolume = (): { sound: number; music: number } => {
   try { return { sound: 0.8, music: 0.8, ...JSON.parse(localStorage.getItem(VOLUME) ?? '{}') }; } catch { return { sound: 0.8, music: 0.8 }; }
 };
@@ -76,6 +78,22 @@ export default function App() {
   const era = useEra();
   const quality = useQuality();
   const [fps, setFps] = useState(params.has('fps'));
+  // Tab hides and shows the settings panel (except while typing in a field)
+  const [panelHidden, setPanelHidden] = useState(readPanelHidden);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = e.target as HTMLElement;
+      if (t.closest('input[type="text"], input[type="number"], textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+      setPanelHidden((h) => {
+        try { localStorage.setItem(PANEL, h ? 'shown' : 'hidden'); } catch { /* session only */ }
+        return !h;
+      });
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   const [soundOn, setSoundOn] = useState(readSound);
   const [volume, setVolume] = useState(readVolume);
   const [menu, setMenu] = useState(false);
@@ -261,7 +279,7 @@ export default function App() {
         <p className="sub">A pencil study from the Cleveland Public Library record</p>
       </header>
 
-      <aside className="panel">
+      <aside className={`panel ${panelHidden ? 'hidden-panel' : ''}`} aria-hidden={panelHidden} inert={panelHidden}>
         <section>
           <h3>Drawing</h3>
           <div className="seg">
@@ -444,7 +462,7 @@ export default function App() {
       )}
 
       <footer className="foot">
-        {mode === 'street' ? 'Drag to look · WASD / arrows to walk · shift to hurry · numbered pins are story beats' : (mapStyle === 'atlas' ? 'Drag to fly · right-drag to turn · scroll to zoom · pick a lot, pick it again to walk down' : 'Drag to pan · scroll to zoom · pick a house or a station to descend')}
+        {panelHidden ? 'Tab shows the settings · ' : 'Tab hides the settings · '}{mode === 'street' ? 'Drag to look · WASD / arrows to walk · shift to hurry · numbered pins are story beats' : (mapStyle === 'atlas' ? 'Drag to fly · right-drag to turn · scroll to zoom · pick a lot, pick it again to walk down' : 'Drag to pan · scroll to zoom · pick a house or a station to descend')}
         <span>
           Demo. Positions read off 1881 Hopkins Plates 3 + 5 (±5 m). Everett, Stager–Beckwith, Rockefeller and Wade Sr. are image-to-3D spikes, not reconstructions; the rest are massing blocks. Images: Cleveland Public Library Digital Gallery.
         </span>
